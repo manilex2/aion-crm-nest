@@ -128,3 +128,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Locks
 
 *-lock.json
+
+*-lock.*
+
+*Key.json
