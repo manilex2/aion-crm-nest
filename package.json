@@ -1,0 +1,19 @@
+{
+    "name": "aion-crm-cohete-backend",
+    "version": "1.0.0",
+    "description": "Funciones Cloud hechas en Nest.js para la app de AION CRM",
+    "main": "index.ts",
+    "scripts": {
+      "lint": "eslint --ext .js,.ts .",
+      "build": "cd functions/aion-crm && npm run build",
+      "serve": "npm run build && cp functions/aion-crm/package.json functions/aion-crm/dist && cp functions/aion-crm/.env functions/aion-crm/dist && firebase emulators:start --only functions",
+      "shell": "npm run build && firebase functions:shell",
+      "start": "npm run shell",
+      "deploy": "firebase deploy --only functions",
+      "logs": "firebase functions:log"
+    },
+    "private": true,
+    "engines": {
+      "node": "18"
+    }
+  }

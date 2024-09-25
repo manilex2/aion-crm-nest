@@ -1,0 +1,28 @@
+{
+  "functions": [
+    {
+      "source": "functions/aion-crm/dist",
+      "codebase": "aion-crm",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "cp \"functions/aion-crm/package.json\" \"functions/aion-crm/dist\"",
+        "npm --prefix \"functions/aion-crm\" run lint",
+        "npm --prefix \"functions/aion-crm\" run build",
+        "cp \"functions/aion-crm/.env\" \"functions/aion-crm/dist\"",
+        "cp \"functions/aion-crm/package.json\" \"functions/aion-crm/dist\""
+      ],
+      "runtime": "nodejs20"
+    }
+  ],
+  "extensions": {
+    "firestore-algolia-search": "algolia/firestore-algolia-search@1.2.7",
+    "firestore-algolia-search-8cqi": "algolia/firestore-algolia-search@1.2.7",
+    "firestore-algolia-search-z8a3": "algolia/firestore-algolia-search@1.2.7"
+  }
+}
