@@ -1,5 +1,6 @@
 import {
   Controller,
+  Header,
   HttpException,
   HttpStatus,
   Post,
@@ -13,15 +14,14 @@ export class WhatsappController {
   constructor(private readonly whatsappService: WhatsappService) {}
 
   @Post('send-notifications')
+  @Header('Content-Type', 'application/json')
   async sendNotifications(@Res() res: Response) {
     try {
       await this.whatsappService.sendNotifications();
-      res.setHeader('Content-Type', 'application/json');
       return res
         .status(HttpStatus.CREATED)
         .send({ message: 'Notificaciones enviadas exitosamente' });
     } catch (error) {
-      res.setHeader('Content-Type', 'application/json');
       // Si el error es de tipo HttpException, usamos su código de estado
       if (error instanceof HttpException) {
         return res.status(error.getStatus()).send({ message: error.message });

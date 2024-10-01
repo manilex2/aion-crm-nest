@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ContificoModule } from './contifico/contifico.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ReportesModule } from './reportes/reportes.module';
+import { ContactosModule } from './contactos/contactos.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ReportesModule } from './reportes/reportes.module';
     ContificoModule,
     WhatsappModule,
     ReportesModule,
+    ContactosModule,
   ],
   controllers: [AppController],
   providers: [AppService, CommonService],

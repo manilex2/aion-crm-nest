@@ -39,6 +39,8 @@ const createFunction = async (expressInstance: Express) => {
       origin: [
         'https://aion-crm.flutterflow.app',
         'https://app.flutterflow.io/debug',
+        'https://aion-crm-asm.web.app',
+        'https://crm.vistalmar.com.ec',
       ], // Lista de orígenes permitidos
       methods: 'GET, POST, PUT, OPTIONS', // Métodos HTTP permitidos
       allowedHeaders: 'Content-Type, Authorization', // Encabezados permitidos

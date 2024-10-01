@@ -1,4 +1,4 @@
-import { Controller, HttpStatus, Post, Req, Res } from '@nestjs/common';
+import { Controller, Header, HttpStatus, Post, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ReportesService } from './reportes.service';
 
@@ -7,13 +7,13 @@ export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
   @Post('contact-failed')
+  @Header('Content-Type', 'application/json')
   async reportePDFContactFailed(
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     try {
       const result = await this.reportesService.reportePDFContactFailed(req);
-      res.setHeader('Content-Type', 'application/json');
       res.status(HttpStatus.OK).send({ message: result });
     } catch (error) {
       const status = error.status || 500;
@@ -23,35 +23,33 @@ export class ReportesController {
   }
 
   @Post('cotizacion-terreno')
+  @Header('Content-Type', 'application/json')
   async reportePDFCotTerreno(
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     try {
       const result = await this.reportesService.reportePDFCotTerreno(req);
-      res.setHeader('Content-Type', 'application/json');
       res.status(HttpStatus.OK).send({ message: result });
     } catch (error) {
       const status = error.status || HttpStatus.INTERNAL_SERVER_ERROR;
       const message = error.message || 'Error interno del servidor';
-      res.setHeader('Content-Type', 'application/json');
       res.status(status).send({ message });
     }
   }
 
   @Post('lead-status')
+  @Header('Content-Type', 'application/json')
   async reportePDFLeadStatus(
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     try {
       const result = await this.reportesService.reportePDFLeadStatus(req);
-      res.setHeader('Content-Type', 'application/json');
       res.status(200).send({ message: result });
     } catch (error) {
       const status = error.status || HttpStatus.INTERNAL_SERVER_ERROR;
       const message = error.message || 'Error interno del servidor';
-      res.setHeader('Content-Type', 'application/json');
       res.status(status).send({ message });
     }
   }
