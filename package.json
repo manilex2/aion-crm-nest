@@ -6,7 +6,7 @@
     "scripts": {
       "lint": "eslint --ext .js,.ts .",
       "build": "cd functions/aion-crm && npm run build",
-      "serve": "npm run build && cp functions/aion-crm/package.json functions/aion-crm/dist && cp functions/aion-crm/.env functions/aion-crm/dist && firebase emulators:start --only functions",
+      "serve": "npm run build && cp functions/aion-crm/package.json functions/aion-crm/dist && cp functions/aion-crm/.env functions/aion-crm/dist && firebase emulators:start --only functions && export GOOGLE_APPLICATION_CREDENTIALS=\"functions/aion-crm/src/serviceAccountKey.json\"",
       "shell": "npm run build && firebase functions:shell",
       "start": "npm run shell",
       "deploy": "firebase deploy --only functions",

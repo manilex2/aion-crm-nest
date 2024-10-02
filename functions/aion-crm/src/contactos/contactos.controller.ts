@@ -20,7 +20,7 @@ export class ContactosController {
   async exportCSV(@Req() req: Request, @Res() res: Response) {
     try {
       const message = await this.contactosService.exportContactsToCSV();
-      return res.status(HttpStatus.OK).send({ message });
+      return res.status(HttpStatus.OK).send(message);
     } catch (error) {
       res.setHeader('Content-Type', 'application/json');
       // Si el error es de tipo HttpException, usamos su código de estado

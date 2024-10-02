@@ -7,16 +7,8 @@ import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.int
 import { Express } from 'express-serve-static-core';
 import { INestApplication } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-import serviceAccount from './serviceAccountKey.json';
 
-if (process.env.NODE_ENV === 'production') {
-  admin.initializeApp();
-} else {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  });
-}
+admin.initializeApp();
 
 setGlobalOptions({
   maxInstances: 10,
