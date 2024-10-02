@@ -199,8 +199,22 @@ export class ReportesService {
             ? cotizacionData.landAreaM2.toFixed(2) + 'M2'
             : ''
         }`,
-        precio: `${cotizacionData.price ? '$' + cotizacionData.price.toFixed(2) : ''}`,
-        reserva: `${cotizacionData.booking ? '$' + cotizacionData.booking.toFixed(2) : ''}`,
+        precio: `${
+          cotizacionData.price
+            ? cotizacionData.price.toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD',
+              })
+            : ''
+        }`,
+        reserva: `${
+          cotizacionData.booking
+            ? cotizacionData.booking.toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD',
+              })
+            : ''
+        }`,
         entrada: {
           value1: `${
             cotizacionData.entrancePercentage
@@ -209,7 +223,10 @@ export class ReportesService {
           }`,
           value2: `${
             cotizacionData.entranceBooking
-              ? '$' + cotizacionData.entranceBooking.toFixed(2)
+              ? cotizacionData.entranceBooking.toLocaleString('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                })
               : ''
           }`,
         },
@@ -217,7 +234,10 @@ export class ReportesService {
           value1: `${cotizacionData.monthQuotasAmount || ''}`,
           value2: `${
             cotizacionData.monthQuotasValue
-              ? '$' + cotizacionData.monthQuotasValue.toFixed(2)
+              ? cotizacionData.monthQuotasValue.toLocaleString('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                })
               : ''
           }`,
         },
@@ -234,7 +254,10 @@ export class ReportesService {
           }`,
           value2: `${
             cotizacionData.bankCreditBalanceValue
-              ? '$' + cotizacionData.bankCreditBalanceValue.toFixed(2)
+              ? cotizacionData.bankCreditBalanceValue.toLocaleString('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                })
               : ''
           }`,
         },
@@ -252,7 +275,10 @@ export class ReportesService {
 
         resultados.cuotasTotales.push({
           numCuota: i + 1,
-          valor: '$' + cotizacionData.monthQuotasValue.toFixed(2),
+          valor: cotizacionData.monthQuotasValue.toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+          }),
           fecha: fechaCuota,
         });
       }

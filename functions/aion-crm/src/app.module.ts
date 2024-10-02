@@ -8,6 +8,7 @@ import { ContificoModule } from './contifico/contifico.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { ContactosModule } from './contactos/contactos.module';
+import { IndicadoresModule } from './indicadores/indicadores.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ContactosModule } from './contactos/contactos.module';
     WhatsappModule,
     ReportesModule,
     ContactosModule,
+    IndicadoresModule,
   ],
   controllers: [AppController],
   providers: [AppService, CommonService],

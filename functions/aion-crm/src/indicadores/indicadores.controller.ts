@@ -8,19 +8,18 @@ import {
   Res,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { ContactosService } from './contactos.service';
+import { IndicadoresService } from './indicadores.service';
 
-@Controller('contactos')
-export class ContactosController {
-  constructor(private readonly contactosService: ContactosService) {}
+@Controller('indicadores')
+export class IndicadoresController {
+  constructor(private readonly indicadoresService: IndicadoresService) {}
 
-  @Get('export-csv')
-  @Header('Content-Type', 'text/csv')
-  @Header('Content-Disposition', 'attachment; filename="contactos.csv"')
-  async exportCSV(@Req() req: Request, @Res() res: Response) {
+  @Get('actualizar')
+  @Header('Content-Type', 'application/json')
+  async actualizarIndicadores(@Req() req: Request, @Res() res: Response) {
     try {
-      const message = await this.contactosService.exportContactsToCSV();
-      return res.status(HttpStatus.OK).send({ message });
+      const message = await this.indicadoresService.update();
+      return res.status(HttpStatus.OK).send({ message: message });
     } catch (error) {
       res.setHeader('Content-Type', 'application/json');
       // Si el error es de tipo HttpException, usamos su código de estado
