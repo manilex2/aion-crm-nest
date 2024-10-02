@@ -12,6 +12,7 @@
       ],
       "predeploy": [
         "cp \"functions/aion-crm/package.json\" \"functions/aion-crm/dist\"",
+        "npm --prefix \"functions/aion-crm\" install",
         "npm --prefix \"functions/aion-crm\" run lint",
         "npm --prefix \"functions/aion-crm\" run build",
         "cp \"functions/aion-crm/.env\" \"functions/aion-crm/dist\"",
