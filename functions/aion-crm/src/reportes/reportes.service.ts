@@ -537,18 +537,10 @@ export class ReportesService {
       const resultados = leadsContactFailData.map((row) => ({
         contador: count++,
         origen: row.data.source || '',
-        fecha: row.data.registrationDate
-          ? this.formatDate(row.data.registrationDate)
-          : '',
         nombre: row.data.names ? row.data.names : '',
         apellido: row.data.surnames ? row.data.surnames : '',
         correo: row.data.email ? row.data.email : '',
         telefono: row.data.phone ? row.data.phone : '',
-        ultimoSeguimiento: row.data.lastUpdate
-          ? this.formatDate(row.data.lastUpdate) || ''
-          : '',
-        status: row.data.lastLeadStatus ? row.data.lastLeadStatus : '',
-        comentario: row.data.notes ? row.data.notes : '',
       }));
 
       const pdfBytes = await this.generatePDF('seguimiento', resultados, {
