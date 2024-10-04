@@ -619,9 +619,11 @@ export class ReportesService {
     pdfDoc.registerFontkit(fontkit);
 
     const fontBytesRegular = fs.readFileSync(
-      'src/fonts/Montserrat-Regular.otf',
+      'src/fonts/montserrat 2/Montserrat-Regular.otf',
     );
-    const fontBytesBold = fs.readFileSync('src/fonts/Montserrat-Bold.otf');
+    const fontBytesBold = fs.readFileSync(
+      'src/fonts/montserrat 2/Montserrat-Bold.otf',
+    );
 
     const font = await pdfDoc.embedFont(fontBytesRegular);
     const fontBold = await pdfDoc.embedFont(fontBytesBold);
