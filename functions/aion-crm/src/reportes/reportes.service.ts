@@ -105,21 +105,35 @@ export class ReportesService {
       const pdfDocIds = [];
 
       for (const [index, group] of groupedResults.entries()) {
-        const resultados = group.map((row) => ({
-          origen: row.data.source || '',
-          fecha: row.data.registrationDate
-            ? this.formatDate(row.data.registrationDate)
-            : '',
-          nombre: row.data.names ? row.data.names : '',
-          apellido: row.data.surnames ? row.data.surnames : '',
-          correo: row.data.email ? row.data.email : '',
-          telefono: row.data.phone ? row.data.phone : '',
-          ultimoSeguimiento: row.data.lastUpdate
-            ? this.formatDate(row.data.lastUpdate) || ''
-            : '',
-          status: row.data.lastLeadStatus ? row.data.lastLeadStatus : '',
-          comentario: row.data.notes ? row.data.notes : '',
-        }));
+        const resultados = group.map(
+          (row: {
+            data: {
+              source: any;
+              registrationDate: any;
+              names: any;
+              surnames: any;
+              email: any;
+              phone: any;
+              lastUpdate: any;
+              lastLeadStatus: any;
+              notes: any;
+            };
+          }) => ({
+            origen: row.data.source || '',
+            fecha: row.data.registrationDate
+              ? this.formatDate(row.data.registrationDate)
+              : '',
+            nombre: row.data.names ? row.data.names : '',
+            apellido: row.data.surnames ? row.data.surnames : '',
+            correo: row.data.email ? row.data.email : '',
+            telefono: row.data.phone ? row.data.phone : '',
+            ultimoSeguimiento: row.data.lastUpdate
+              ? this.formatDate(row.data.lastUpdate) || ''
+              : '',
+            status: row.data.lastLeadStatus ? row.data.lastLeadStatus : '',
+            comentario: row.data.notes ? row.data.notes : '',
+          }),
+        );
 
         const pdfBytes = await this.generatePDF('contact-failed', resultados, {
           logoUrl,
@@ -128,7 +142,7 @@ export class ReportesService {
         const pdfDate = dates[index % 4];
         const formattedDate = pdfDate.toFormat('dd-MM-yyyy');
 
-        const destination = `pdfs/will-contact/seguimiento-${source}-${formattedDate}.pdf`;
+        const destination = `pdfs/will-contact/seguimiento_${source}_${formattedDate}.pdf`;
 
         const file = this.storage.file(destination);
         await file.save(pdfBytes, {
@@ -149,7 +163,9 @@ export class ReportesService {
         const docRef = await this.db.collection('pdfSeguimientos').add({
           url: url,
           fecha: pdfDate.toJSDate(),
-          contactos: group.map((row) => row.docReference),
+          contactos: group.map(
+            (row: { docReference: any }) => row.docReference,
+          ),
         });
 
         pdfDocIds.push(docRef.id);
@@ -292,7 +308,7 @@ export class ReportesService {
         },
       );
 
-      const destination = `pdfs/cotizaciones/${clientData.name}-${new Date(Date.now())}.pdf`;
+      const destination = `pdfs/cotizaciones/${clientData.name}_${new Date(Date.now())}.pdf`;
 
       const file = this.storage.file(destination);
       await file.save(pdfBytes, {
@@ -394,19 +410,19 @@ export class ReportesService {
         fechaFin: formattedEnd,
       });
 
-      const destination = `pdfs/leads/inicio-${
+      const destination = `pdfs/leads/inicio_${
         fechaStartPDF.getDate() +
-        '-' +
+        '_' +
         (fechaStartPDF.getMonth() + 1) +
-        '-' +
+        '_' +
         fechaStartPDF.getFullYear()
-      }-final-${
+      }_final_${
         fechaEndPDF.getDate() +
-        '-' +
+        '_' +
         (fechaEndPDF.getMonth() + 1) +
-        '-' +
+        '_' +
         fechaEndPDF.getFullYear()
-      }-${new Date(Date.now())}.pdf`;
+      }_${new Date(Date.now())}.pdf`;
 
       const file = this.storage.file(destination);
       await file.save(pdfBytes, {
@@ -424,6 +440,150 @@ export class ReportesService {
       });
 
       return url;
+    } catch (error) {
+      console.error('Error generando el PDF:', error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        'Error interno del servidor al generar el PDF',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Fourth function: reportePDFSeguimiento
+  async reportePDFSeguimiento(req: Request): Promise<string[]> {
+    const { source, lastLeadStatus, logoUrl, nombre, fecha } = req.body;
+
+    if (!Array.isArray(lastLeadStatus) || lastLeadStatus.length === 0) {
+      throw new HttpException(
+        'No se proporcionaron datos lastLeadStatus',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!Array.isArray(source) || source.length === 0) {
+      throw new HttpException(
+        'No se proporcionaron datos source',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!logoUrl) {
+      throw new HttpException(
+        'No se proporcionó el logoUrl',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!nombre) {
+      throw new HttpException(
+        'No se proporcionó el nombre',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!fecha) {
+      throw new HttpException(
+        'No se proporcionó la fecha',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    try {
+      const leadsContactFailData = [];
+      let limitReached = false;
+
+      for (const src of source) {
+        if (limitReached) break;
+
+        for (const statusId of lastLeadStatus) {
+          if (limitReached) break;
+
+          const querySnapshot = await this.db
+            .collection('contactos')
+            .where('source', '==', src)
+            .where('lastLeadStatus', '==', statusId)
+            .limit(100 - leadsContactFailData.length)
+            .get();
+
+          const leads = querySnapshot.docs.map((leadContact) => ({
+            docReference: leadContact.ref,
+            data: leadContact.data(),
+          }));
+          leadsContactFailData.push(...leads);
+
+          if (leadsContactFailData.length >= 100) {
+            limitReached = true;
+            break;
+          }
+        }
+      }
+
+      if (leadsContactFailData.length < 1) {
+        throw new HttpException(
+          'No se encontraron documentos para los filtros especificados.',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const pdfDocIds = [];
+
+      let count = 0;
+
+      const resultados = leadsContactFailData.map((row) => ({
+        contador: count++,
+        origen: row.data.source || '',
+        fecha: row.data.registrationDate
+          ? this.formatDate(row.data.registrationDate)
+          : '',
+        nombre: row.data.names ? row.data.names : '',
+        apellido: row.data.surnames ? row.data.surnames : '',
+        correo: row.data.email ? row.data.email : '',
+        telefono: row.data.phone ? row.data.phone : '',
+        ultimoSeguimiento: row.data.lastUpdate
+          ? this.formatDate(row.data.lastUpdate) || ''
+          : '',
+        status: row.data.lastLeadStatus ? row.data.lastLeadStatus : '',
+        comentario: row.data.notes ? row.data.notes : '',
+      }));
+
+      const pdfBytes = await this.generatePDF('seguimiento', resultados, {
+        logoUrl,
+        nombre,
+      });
+
+      const formattedDate = fecha.toFormat('dd-MM-yyyy');
+
+      const destination = `pdfs/seguimiento/${nombre}_${formattedDate}.pdf`;
+
+      const file = this.storage.file(destination);
+      await file.save(pdfBytes, {
+        metadata: {
+          contentType: 'application/pdf',
+          cacheControl: 'public, max-age=31536000',
+        },
+      });
+
+      console.log(`El seguimiento PDF ha sido subido a ${destination}`);
+
+      const url = `https://firebasestorage.googleapis.com/v0/b/aion-crm-asm.appspot.com/o/${encodeURIComponent(
+        destination,
+      )}?alt=media`;
+
+      const docRef = await this.db.collection('pdfSeguimientos').add({
+        url: url,
+        fecha: fecha.toJSDate(),
+        contactos: lastLeadStatus.map((row) => row.docReference),
+        name: nombre,
+      });
+
+      pdfDocIds.push(docRef.id);
+
+      return pdfDocIds;
     } catch (error) {
       console.error('Error generando el PDF:', error);
 
@@ -512,6 +672,16 @@ export class ReportesService {
       case 'lead-status':
         // Implement the PDF generation logic for 'lead-status' type
         return await this.generateLeadStatusPDF(
+          pdfDoc,
+          data,
+          options,
+          logoImage,
+          font,
+          fontBold,
+        );
+      case 'seguimiento':
+        // Implement the PDF generation logic for 'seguimiento' type
+        return await this.generateSeguimientoPDF(
           pdfDoc,
           data,
           options,
@@ -673,7 +843,7 @@ export class ReportesService {
     yPosition -= rowHeight;
 
     // Dibujar filas de datos y bordes
-    data.forEach((row, index) => {
+    data.forEach((row: { [x: string]: string }, index: number) => {
       let maxLines = 1; // Para almacenar la cantidad máxima de líneas en una fila
 
       // Calcular el máximo de líneas para cualquier columna en la fila actual
@@ -720,7 +890,7 @@ export class ReportesService {
         const cellText = row[header.key] || '';
         const lines = this.splitTextIntoLines(
           cellText.toString(),
-          columnWidths[i] - 10,
+          columnWidths[i],
           fontSize,
           font,
         );
@@ -948,65 +1118,67 @@ export class ReportesService {
 
     yFields -= 20;
 
-    data.cuotasTotales.forEach((cuota) => {
-      if (yFields - rowHeight < footerHeight + marginBottom) {
-        page = pdfDoc.addPage(PageSizes.Letter);
-        yFields = height - marginTop; // Reiniciar la posición Y
-      }
+    data.cuotasTotales.forEach(
+      (cuota: { numCuota: any; fecha: string; valor: string }) => {
+        if (yFields - rowHeight < footerHeight + marginBottom) {
+          page = pdfDoc.addPage(PageSizes.Letter);
+          yFields = height - marginTop; // Reiniciar la posición Y
+        }
 
-      page.drawRectangle({
-        x: xFields + 90,
-        y: yFields - 5,
-        width: 40,
-        height: rowHeight,
-        borderColor: rgb(0.635, 0.635, 0.635),
-        borderWidth: 1,
-      });
+        page.drawRectangle({
+          x: xFields + 90,
+          y: yFields - 5,
+          width: 40,
+          height: rowHeight,
+          borderColor: rgb(0.635, 0.635, 0.635),
+          borderWidth: 1,
+        });
 
-      page.drawRectangle({
-        x: xFields + 130,
-        y: yFields - 5,
-        width: 90,
-        height: rowHeight,
-        borderColor: rgb(0.635, 0.635, 0.635),
-        borderWidth: 1,
-      });
+        page.drawRectangle({
+          x: xFields + 130,
+          y: yFields - 5,
+          width: 90,
+          height: rowHeight,
+          borderColor: rgb(0.635, 0.635, 0.635),
+          borderWidth: 1,
+        });
 
-      page.drawRectangle({
-        x: xFields + 220,
-        y: yFields - 5,
-        width: 80,
-        height: rowHeight,
-        borderColor: rgb(0.635, 0.635, 0.635),
-        borderWidth: 1,
-      });
+        page.drawRectangle({
+          x: xFields + 220,
+          y: yFields - 5,
+          width: 80,
+          height: rowHeight,
+          borderColor: rgb(0.635, 0.635, 0.635),
+          borderWidth: 1,
+        });
 
-      page.drawText(`${cuota.numCuota}`, {
-        x: xFields + 95,
-        y: yFields,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
+        page.drawText(`${cuota.numCuota}`, {
+          x: xFields + 95,
+          y: yFields,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
 
-      page.drawText(cuota.fecha, {
-        x: xFields + 135,
-        y: yFields,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
+        page.drawText(cuota.fecha, {
+          x: xFields + 135,
+          y: yFields,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
 
-      page.drawText(cuota.valor, {
-        x: xFields + 225,
-        y: yFields,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
+        page.drawText(cuota.valor, {
+          x: xFields + 225,
+          y: yFields,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
 
-      yFields -= 20;
-    });
+        yFields -= 20;
+      },
+    );
 
     yFields -= 100;
 
@@ -1295,7 +1467,7 @@ export class ReportesService {
     yPosition -= rowHeight;
 
     // Dibujar filas de datos y bordes
-    data.forEach((row) => {
+    data.forEach((row: { [x: string]: string }) => {
       let maxLines = 1; // Para almacenar la cantidad máxima de líneas en una fila
 
       // Calcular el máximo de líneas para cualquier columna en la fila actual
@@ -1354,6 +1526,170 @@ export class ReportesService {
     /* pdfDoc.getPages().forEach((p) => {
     drawFooter(p, font, footerFontSize, width);
   }); */
+    return await pdfDoc.save();
+  }
+
+  private async generateSeguimientoPDF(
+    pdfDoc: PDFDocument,
+    data: any,
+    options: any,
+    logoImage: any,
+    font: any,
+    fontBold: any,
+  ): Promise<Uint8Array> {
+    // Crear un nuevo documento PDF tamaño carta
+    let page = pdfDoc.addPage(PageSizes.Letter);
+    const { width, height } = page.getSize();
+
+    // eslint-disable-next-line max-len
+    // Cargar la imagen de la captura de pantalla (la imagen debe estar en una URL accesible públicamente)
+    const logoDims = logoImage.scale(0.5); // Escalar la imagen si es necesario
+
+    const fontSize = 8;
+    const footerFontSize = 8;
+    const footerMargin = 10;
+
+    // Dibujar el logo en la página
+    page.drawImage(logoImage, {
+      x: 35,
+      y:
+        logoDims.height > 90
+          ? height - logoDims.height
+          : height - logoDims.height - 20,
+      width: logoDims.width,
+      height: logoDims.height > 90 ? logoDims.height - 20 : logoDims.height,
+    });
+
+    // Establecer las fuentes para el texto
+    pdfDoc.registerFontkit(fontkit);
+
+    // Título
+    // Título: "Nombre del Reporte"
+    page.drawText(options.nombre, {
+      x: 35,
+      y: height - 130,
+      size: fontSize,
+      font: fontBold,
+      color: rgb(0, 0.129, 0.302),
+    });
+
+    // Tabla de datos
+    const tableTop = height - 160;
+    const tableLeft = 35;
+    const rowHeight = 20;
+    let yPosition = tableTop;
+
+    const headers = [
+      { label: '#', key: 'contador' },
+      { label: 'Origen', key: 'origen' },
+      { label: 'Nombre', key: 'nombre' },
+      { label: 'Apellido', key: 'apellido' },
+      { label: 'Correo', key: 'email' },
+      { label: 'Teléfono', key: 'telefono' },
+    ];
+    const columnWidths = [20, 90, 100, 100, 150, 66];
+
+    headers.forEach((header, i) => {
+      const xPosition =
+        tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
+
+      // Dibujar rectángulo de la celda del encabezado
+      page.drawRectangle({
+        x: xPosition,
+        y: yPosition - rowHeight,
+        width: columnWidths[i],
+        height: rowHeight,
+        borderColor: rgb(0, 0, 0),
+        borderWidth: 1,
+      });
+
+      // Dibujar el texto del encabezado
+      page.drawText(header.label, {
+        x: xPosition + 5, // Padding para el texto
+        y: yPosition - fontSize - 2, // Ajuste adicional para evitar superposición
+        size: fontSize,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+    });
+
+    // Ajustar yPosition para empezar con las filas de datos
+    yPosition -= rowHeight;
+
+    // Dibujar filas de datos y bordes
+    data.forEach((row: { [x: string]: string }, index: number) => {
+      let maxLines = 1; // Para almacenar la cantidad máxima de líneas en una fila
+
+      // Calcular el máximo de líneas para cualquier columna en la fila actual
+      headers.forEach((header, i) => {
+        const cellText = row[header.key] || '';
+        const lines = this.splitTextIntoLines(
+          cellText.toString(),
+          columnWidths[i] + 30,
+          fontSize,
+          font,
+        );
+        maxLines = Math.max(maxLines, lines.length);
+      });
+
+      const spaceForFooter = footerMargin + 85 + footerFontSize * 4;
+      // eslint-disable-next-line max-len
+      if (
+        index === data.length - 1 &&
+        yPosition - maxLines * rowHeight < spaceForFooter
+      ) {
+        page = pdfDoc.addPage([1280, 792]);
+        yPosition = height - 50; // Reiniciar yPosition para la nueva página
+      } else if (yPosition - maxLines * rowHeight < 60 + footerMargin) {
+        page = pdfDoc.addPage([1280, 792]);
+        yPosition = height - 50; // Reiniciar yPosition para la nueva página
+      }
+
+      headers.forEach((header, i) => {
+        const xPosition =
+          tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
+        const cellHeight = maxLines * rowHeight;
+
+        // Dibujar el rectángulo de la celda
+        page.drawRectangle({
+          x: xPosition,
+          y: yPosition - cellHeight,
+          width: columnWidths[i],
+          height: cellHeight,
+          borderColor: rgb(0, 0, 0),
+          borderWidth: 1,
+        });
+
+        // Obtener el valor de la celda correspondiente usando la clave correcta
+        const cellText = row[header.key] || '';
+        const lines = this.splitTextIntoLines(
+          cellText.toString(),
+          columnWidths[i] - 10,
+          fontSize,
+          font,
+        );
+
+        lines.forEach((line, lineIndex) => {
+          page.drawText(line, {
+            x: xPosition + 5,
+            y: yPosition - lineIndex * rowHeight - 15,
+            size: fontSize,
+            font: font,
+            color: rgb(0, 0, 0),
+          });
+        });
+      });
+
+      // Ajustar yPosition para la siguiente fila
+      yPosition -= maxLines * rowHeight;
+    });
+
+    pdfDoc.getPages().forEach((p, index) => {
+      if (index === pdfDoc.getPageCount() - 1) {
+        this.drawFooter(p, font, footerFontSize, width);
+      }
+    });
+
     return await pdfDoc.save();
   }
 }

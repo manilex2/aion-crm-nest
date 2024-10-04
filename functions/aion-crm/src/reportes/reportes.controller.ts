@@ -53,4 +53,20 @@ export class ReportesController {
       res.status(status).send({ message });
     }
   }
+
+  @Post('seguimiento')
+  @Header('Content-Type', 'application/json')
+  async reportePDFSeguimiento(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const result = await this.reportesService.reportePDFSeguimiento(req);
+      res.status(HttpStatus.OK).send({ message: result });
+    } catch (error) {
+      const status = error.status || 500;
+      const message = error.message || 'Error interno del servidor';
+      res.status(status).send({ message });
+    }
+  }
 }
