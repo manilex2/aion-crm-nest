@@ -1150,6 +1150,7 @@ export class ReportesService {
       }
     });
 
+    // Después de dibujar los campos, comenzamos con las cuotas
     page.drawText('Cuotas:', {
       x: xFields,
       y: yFields,
@@ -1158,11 +1159,120 @@ export class ReportesService {
       color: rgb(0, 0, 0),
     });
 
+    yFields -= 20; // Mover hacia abajo antes de dibujar los encabezados
+
+    // Dibujar los encabezados de la tabla
+    page.drawRectangle({
+      x: xFields + 90,
+      y: yFields - 5,
+      width: 40,
+      height: rowHeight,
+      borderColor: rgb(0.635, 0.635, 0.635),
+      borderWidth: 1,
+    });
+
+    page.drawRectangle({
+      x: xFields + 130,
+      y: yFields - 5,
+      width: 90,
+      height: rowHeight,
+      borderColor: rgb(0.635, 0.635, 0.635),
+      borderWidth: 1,
+    });
+
+    page.drawRectangle({
+      x: xFields + 220,
+      y: yFields - 5,
+      width: 80,
+      height: rowHeight,
+      borderColor: rgb(0.635, 0.635, 0.635),
+      borderWidth: 1,
+    });
+
+    page.drawText('#', {
+      x: xFields + 95,
+      y: yFields,
+      size: fontSize,
+      font: fontBold,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText('Fecha', {
+      x: xFields + 135,
+      y: yFields,
+      size: fontSize,
+      font: fontBold,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText('Monto', {
+      x: xFields + 225,
+      y: yFields,
+      size: fontSize,
+      font: fontBold,
+      color: rgb(0, 0, 0),
+    });
+
+    yFields -= rowHeight; // Ajustar yFields para las filas de datos
+
     data.cuotasTotales.forEach(
       (cuota: { numCuota: any; fecha: string; valor: string }) => {
         if (yFields - rowHeight < footerHeight + marginBottom) {
           page = pdfDoc.addPage(PageSizes.Letter);
           yFields = height - marginTop; // Reiniciar la posición Y
+          // Redibujar los encabezados en la nueva página
+          page.drawRectangle({
+            x: xFields + 90,
+            y: yFields - 5,
+            width: 40,
+            height: rowHeight,
+            borderColor: rgb(0.635, 0.635, 0.635),
+            borderWidth: 1,
+          });
+
+          page.drawRectangle({
+            x: xFields + 130,
+            y: yFields - 5,
+            width: 90,
+            height: rowHeight,
+            borderColor: rgb(0.635, 0.635, 0.635),
+            borderWidth: 1,
+          });
+
+          page.drawRectangle({
+            x: xFields + 220,
+            y: yFields - 5,
+            width: 80,
+            height: rowHeight,
+            borderColor: rgb(0.635, 0.635, 0.635),
+            borderWidth: 1,
+          });
+
+          page.drawText('#', {
+            x: xFields + 95,
+            y: yFields,
+            size: fontSize,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+
+          page.drawText('Fecha', {
+            x: xFields + 135,
+            y: yFields,
+            size: fontSize,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+
+          page.drawText('Monto', {
+            x: xFields + 225,
+            y: yFields,
+            size: fontSize,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+
+          yFields -= rowHeight; // Ajustar yFields para las filas de datos
         }
 
         page.drawRectangle({
