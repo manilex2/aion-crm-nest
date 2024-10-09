@@ -111,7 +111,7 @@ export class ReportesService {
               source: any;
               registrationDate: any;
               names: any;
-              surnames: any;
+              surenames: any;
               email: any;
               phone: any;
               lastUpdate: any;
@@ -124,7 +124,7 @@ export class ReportesService {
               ? this.formatDate(row.data.registrationDate)
               : '',
             nombre: row.data.names ? row.data.names : '',
-            apellido: row.data.surnames ? row.data.surnames : '',
+            apellido: row.data.surenames ? row.data.surenames : '',
             correo: row.data.email ? row.data.email : '',
             telefono: row.data.phone ? row.data.phone : '',
             ultimoSeguimiento: row.data.lastUpdate
@@ -145,20 +145,28 @@ export class ReportesService {
         const destination = `pdfs/will-contact/seguimiento_${source}_${formattedDate}.pdf`;
 
         const file = this.storage.file(destination);
-        await file.save(pdfBytes, {
-          metadata: {
-            contentType: 'application/pdf',
-            cacheControl: 'public, max-age=31536000',
-          },
-        });
+        await file
+          .save(pdfBytes, {
+            metadata: {
+              contentType: 'application/pdf',
+              cacheControl: 'public, max-age=31536000',
+            },
+          })
+          .then(async () => {
+            console.log('Éxito al guardar pdf en Firebase Storage.');
+            await file.makePublic();
+          })
+          .catch((err) => {
+            const errorMsg = 'Error al guardar en Firebase Storage el pdf';
+            console.error(errorMsg);
+            console.error(err);
+          });
 
         console.log(
           `El PDF grupo ${index + 1} ha sido subido a ${destination}`,
         );
 
-        const url = `https://firebasestorage.googleapis.com/v0/b/aion-crm-asm.appspot.com/o/${encodeURIComponent(
-          destination,
-        )}?alt=media`;
+        const url = file.publicUrl();
 
         const docRef = await this.db.collection('pdfSeguimientos').add({
           url: url,
@@ -207,8 +215,8 @@ export class ReportesService {
 
       const resultados = {
         cliente: `${clientData.title || ''} ${clientData.name}`,
-        email: `${clientData.email || ''}`,
-        cedula: `${clientData.idNumber || ''}`,
+        email: `${cotizacionData.email || ''}`,
+        cedula: `${cotizacionData.idNumber || ''}`,
         solar: `${cotizacionData.solar || ''}`,
         area: `${
           cotizacionData.landAreaM2
@@ -246,17 +254,6 @@ export class ReportesService {
               : ''
           }`,
         },
-        cuotasMens: {
-          value1: `${cotizacionData.monthQuotasAmount || ''}`,
-          value2: `${
-            cotizacionData.monthQuotasValue
-              ? cotizacionData.monthQuotasValue.toLocaleString('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                })
-              : ''
-          }`,
-        },
         firstExpiration: `${
           cotizacionData.firstExpiration
             ? this.formatDate(cotizacionData.firstExpiration, false)
@@ -279,19 +276,15 @@ export class ReportesService {
         },
         cuotasTotales: [],
       };
-
-      const firstExpirationDate = DateTime.fromJSDate(
-        cotizacionData.firstExpiration.toDate(),
-      );
-
-      for (let i = 0; i < parseInt(cotizacionData.monthQuotasAmount); i++) {
-        const fechaCuota = firstExpirationDate
-          .plus({ months: i })
-          .toFormat('dd/MM/yyyy');
+      for (let i = 0; i < cotizacionData.quotesPlan.length; i++) {
+        const quota = cotizacionData.quotesPlan[i];
+        const fechaCuota = DateTime.fromJSDate(quota.fecha.toDate()).toFormat(
+          'dd/MM/yyyy',
+        );
 
         resultados.cuotasTotales.push({
           numCuota: i + 1,
-          valor: cotizacionData.monthQuotasValue.toLocaleString('en-US', {
+          valor: quota.valor.toLocaleString('en-US', {
             style: 'currency',
             currency: 'USD',
           }),
@@ -311,12 +304,22 @@ export class ReportesService {
       const destination = `pdfs/cotizaciones/${clientData.name}_${new Date(Date.now())}.pdf`;
 
       const file = this.storage.file(destination);
-      await file.save(pdfBytes, {
-        metadata: {
-          contentType: 'application/pdf',
-          cacheControl: 'public, max-age=31536000',
-        },
-      });
+      await file
+        .save(pdfBytes, {
+          metadata: {
+            contentType: 'application/pdf',
+            cacheControl: 'public, max-age=31536000',
+          },
+        })
+        .then(async () => {
+          console.log('Éxito al guardar pdf en Firebase Storage.');
+          await file.makePublic();
+        })
+        .catch((err) => {
+          const errorMsg = 'Error al guardar en Firebase Storage el pdf';
+          console.error(errorMsg);
+          console.error(err);
+        });
 
       console.log(`El PDF ha sido subido a ${destination}`);
 
@@ -325,10 +328,7 @@ export class ReportesService {
         landQuoteUrl: file.baseUrl,
       });
 
-      const [url] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 60 * 60 * 1000,
-      });
+      const url = file.publicUrl();
 
       return url;
     } catch (error) {
@@ -425,19 +425,26 @@ export class ReportesService {
       }_${new Date(Date.now())}.pdf`;
 
       const file = this.storage.file(destination);
-      await file.save(pdfBytes, {
-        metadata: {
-          contentType: 'application/pdf',
-          cacheControl: 'public, max-age=31536000',
-        },
-      });
+      await file
+        .save(pdfBytes, {
+          metadata: {
+            contentType: 'application/pdf',
+            cacheControl: 'public, max-age=31536000',
+          },
+        })
+        .then(async () => {
+          console.log('Éxito al guardar pdf en Firebase Storage.');
+          await file.makePublic();
+        })
+        .catch((err) => {
+          const errorMsg = 'Error al guardar en Firebase Storage el pdf';
+          console.error(errorMsg);
+          console.error(err);
+        });
 
       console.log(`El PDF ha sido subido a ${destination}`);
 
-      const [url] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 60 * 60 * 1000,
-      });
+      const url = file.publicUrl();
 
       return url;
     } catch (error) {
@@ -493,6 +500,8 @@ export class ReportesService {
       );
     }
 
+    const date = DateTime.fromFormat(fecha, 'yyyy-MM-dd HH:mm:ss.SSS');
+
     try {
       const leadsContactFailData = [];
       let limitReached = false;
@@ -532,13 +541,13 @@ export class ReportesService {
 
       const pdfDocIds = [];
 
-      let count = 0;
+      let count = 1;
 
       const resultados = leadsContactFailData.map((row) => ({
         contador: count++,
         origen: row.data.source || '',
         nombre: row.data.names ? row.data.names : '',
-        apellido: row.data.surnames ? row.data.surnames : '',
+        apellido: row.data.surenames ? row.data.surenames : '',
         correo: row.data.email ? row.data.email : '',
         telefono: row.data.phone ? row.data.phone : '',
       }));
@@ -548,28 +557,36 @@ export class ReportesService {
         nombre,
       });
 
-      const formattedDate = fecha.toFormat('dd-MM-yyyy');
+      const formattedDate = date.toFormat('dd-MM-yyyy');
 
       const destination = `pdfs/seguimiento/${nombre}_${formattedDate}.pdf`;
 
       const file = this.storage.file(destination);
-      await file.save(pdfBytes, {
-        metadata: {
-          contentType: 'application/pdf',
-          cacheControl: 'public, max-age=31536000',
-        },
-      });
+      await file
+        .save(pdfBytes, {
+          metadata: {
+            contentType: 'application/pdf',
+            cacheControl: 'public, max-age=31536000',
+          },
+        })
+        .then(async () => {
+          console.log('Éxito al guardar pdf en Firebase Storage.');
+          await file.makePublic();
+        })
+        .catch((err) => {
+          const errorMsg = 'Error al guardar en Firebase Storage el pdf';
+          console.error(errorMsg);
+          console.error(err);
+        });
 
       console.log(`El seguimiento PDF ha sido subido a ${destination}`);
 
-      const url = `https://firebasestorage.googleapis.com/v0/b/aion-crm-asm.appspot.com/o/${encodeURIComponent(
-        destination,
-      )}?alt=media`;
+      const url = file.publicUrl();
 
       const docRef = await this.db.collection('pdfSeguimientos').add({
         url: url,
-        fecha: fecha.toJSDate(),
-        contactos: lastLeadStatus.map((row) => row.docReference),
+        fecha: date.toJSDate(),
+        contactos: leadsContactFailData.map((row) => row.docReference),
         name: nombre,
       });
 
@@ -619,10 +636,10 @@ export class ReportesService {
     pdfDoc.registerFontkit(fontkit);
 
     const fontBytesRegular = fs.readFileSync(
-      'src/fonts/montserrat 2/Montserrat-Regular.otf',
+      './fonts/montserrat 2/Montserrat-Regular.otf',
     );
     const fontBytesBold = fs.readFileSync(
-      'src/fonts/montserrat 2/Montserrat-Bold.otf',
+      './fonts/montserrat 2/Montserrat-Bold.otf',
     );
 
     const font = await pdfDoc.embedFont(fontBytesRegular);
@@ -692,11 +709,12 @@ export class ReportesService {
   }
 
   private splitTextIntoLines(
-    text: string,
+    text: any,
     maxWidth: number,
     fontSize: number,
     font: any,
   ): string[] {
+    text = String(text || '');
     const words = text.split(' ');
     const lines = [];
     let currentLine = '';
@@ -765,19 +783,17 @@ export class ReportesService {
     const fontSize = 8;
     const footerFontSize = 8;
     const footerMargin = 10;
+    const rowHeight = 20;
 
-    // Dibujar el logo en la página
+    // Dibujar el logo
     page.drawImage(logoImage, {
       x: 35,
-      y:
-        logoDims.height > 90
-          ? height - logoDims.height
-          : height - logoDims.height - 20,
+      y: height - logoDims.height - 20,
       width: logoDims.width,
-      height: logoDims.height > 90 ? logoDims.height - 20 : logoDims.height,
+      height: logoDims.height,
     });
 
-    // Establecer las fuentes para el texto
+    // Establecer las fuentes
     pdfDoc.registerFontkit(fontkit);
 
     // Título
@@ -793,7 +809,6 @@ export class ReportesService {
     // Tabla de datos
     const tableTop = height - 160;
     const tableLeft = 35;
-    const rowHeight = 20;
     let yPosition = tableTop;
 
     const headers = [
@@ -813,7 +828,6 @@ export class ReportesService {
       const xPosition =
         tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
 
-      // Dibujar rectángulo de la celda del encabezado
       page.drawRectangle({
         x: xPosition,
         y: yPosition - rowHeight,
@@ -823,52 +837,72 @@ export class ReportesService {
         borderWidth: 1,
       });
 
-      // Dibujar el texto del encabezado
       page.drawText(header.label, {
-        x: xPosition + 5, // Padding para el texto
-        y: yPosition - fontSize - 2, // Ajuste adicional para evitar superposición
+        x: xPosition + 5,
+        y: yPosition - fontSize - 5,
         size: fontSize,
-        font: font,
+        font: fontBold,
         color: rgb(0, 0, 0),
       });
     });
 
-    // Ajustar yPosition para empezar con las filas de datos
     yPosition -= rowHeight;
 
     // Dibujar filas de datos y bordes
-    data.forEach((row: { [x: string]: string }, index: number) => {
-      let maxLines = 1; // Para almacenar la cantidad máxima de líneas en una fila
+    // Dibujar las filas de datos
+    data.forEach((row: { [key: string]: string }) => {
+      let maxLines = 1;
 
-      // Calcular el máximo de líneas para cualquier columna en la fila actual
+      // Calcular el máximo de líneas
       headers.forEach((header, i) => {
         const cellText = row[header.key] || '';
         const lines = this.splitTextIntoLines(
-          cellText.toString(),
-          columnWidths[i] + 30,
+          cellText,
+          columnWidths[i] - 10,
           fontSize,
           font,
         );
         maxLines = Math.max(maxLines, lines.length);
       });
 
+      const cellHeight = maxLines * rowHeight;
       const spaceForFooter = footerMargin + 85 + footerFontSize * 4;
-      // eslint-disable-next-line max-len
-      if (
-        index === data.length - 1 &&
-        yPosition - maxLines * rowHeight < spaceForFooter
-      ) {
+
+      // Verificar si se necesita una nueva página
+      if (yPosition - cellHeight < spaceForFooter) {
         page = pdfDoc.addPage([1280, 792]);
-        yPosition = height - 50; // Reiniciar yPosition para la nueva página
-      } else if (yPosition - maxLines * rowHeight < 60 + footerMargin) {
-        page = pdfDoc.addPage([1280, 792]);
-        yPosition = height - 50; // Reiniciar yPosition para la nueva página
+        yPosition = height - 50;
+
+        // Redibujar los encabezados
+        headers.forEach((header, i) => {
+          const xPosition =
+            tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
+
+          page.drawRectangle({
+            x: xPosition,
+            y: yPosition - rowHeight,
+            width: columnWidths[i],
+            height: rowHeight,
+            borderColor: rgb(0, 0, 0),
+            borderWidth: 1,
+          });
+
+          page.drawText(header.label, {
+            x: xPosition + 5,
+            y: yPosition - fontSize - 5,
+            size: fontSize,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+        });
+
+        yPosition -= rowHeight;
       }
 
+      // Dibujar cada celda
       headers.forEach((header, i) => {
         const xPosition =
           tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
-        const cellHeight = maxLines * rowHeight;
 
         // Dibujar el rectángulo de la celda
         page.drawRectangle({
@@ -880,30 +914,34 @@ export class ReportesService {
           borderWidth: 1,
         });
 
-        // Obtener el valor de la celda correspondiente usando la clave correcta
         const cellText = row[header.key] || '';
         const lines = this.splitTextIntoLines(
-          cellText.toString(),
-          columnWidths[i],
+          cellText,
+          columnWidths[i] - 10,
           fontSize,
           font,
         );
 
+        // Dibujar el texto
         lines.forEach((line, lineIndex) => {
+          const textYPosition =
+            yPosition - (lineIndex + 1) * fontSize - 5 - lineIndex * 5;
+
           page.drawText(line, {
             x: xPosition + 5,
-            y: yPosition - lineIndex * rowHeight - 15,
-            size: header.label == 'Comentario' ? fontSize - 2 : fontSize,
-            font: font,
+            y: textYPosition,
+            size: fontSize,
+            font,
             color: rgb(0, 0, 0),
           });
         });
       });
 
       // Ajustar yPosition para la siguiente fila
-      yPosition -= maxLines * rowHeight;
+      yPosition -= cellHeight;
     });
 
+    // Dibujar el pie de página
     pdfDoc.getPages().forEach((p, index) => {
       if (index === pdfDoc.getPageCount() - 1) {
         this.drawFooter(p, font, footerFontSize, width);
@@ -926,6 +964,11 @@ export class ReportesService {
 
     const logoDims = logoImage.scale(0.5); // Escalar la imagen si es necesario
 
+    const fontSize = 8;
+    const footerFontSize = 8;
+    const footerMargin = 10;
+    const rowHeight = 20;
+
     const image1Bytes = await fetch(options.planoUrl).then((res) =>
       res.arrayBuffer(),
     );
@@ -935,19 +978,17 @@ export class ReportesService {
     const marginTop = 50;
     const marginBottom = 50; // Margen inferior para el contenido antes del footer
     const footerHeight = 60; // Altura reservada para el footer
-    const fontSize = 8;
-    const footerFontSize = 8;
 
-    // Dibujar el logo en la página
+    // Dibujar el logo
     page.drawImage(logoImage, {
       x: width / 3,
-      y:
-        logoDims.height > 90
-          ? height - logoDims.height
-          : height - logoDims.height - 20,
+      y: height - logoDims.height - 20,
       width: logoDims.width * 2,
       height: logoDims.height > 90 ? logoDims.height : logoDims.height * 1.2,
     });
+
+    // Establecer las fuentes
+    pdfDoc.registerFontkit(fontkit);
 
     // Dibujar la imagen 1 en la página
     page.drawImage(image1Image, {
@@ -981,12 +1022,12 @@ export class ReportesService {
       { label: 'Precio:', key: 'precio' },
       { label: 'Reserva:', key: 'reserva' },
       { label: 'ENTRADA - RESERVA:', key: 'entrada' },
-      { label: 'Cuotas mensuales:', key: 'cuotasMens' },
       { label: 'Primer Vencimiento:', key: 'firstExpiration' },
       { label: 'Saldo CRÉDITO BANCARIO:', key: 'saldo' },
     ];
 
-    const rowHeight = 20;
+    // Define un valor para el espaciado vertical entre campos
+    const verticalSpacing = 20; // Puedes ajustar este valor según tus necesidades
 
     // Dibujar los campos de texto
     fields.forEach((field) => {
@@ -1000,117 +1041,122 @@ export class ReportesService {
       });
 
       if (data[field.key].value2) {
+        // Campos con value1 y value2
+        const lines1 = this.splitTextIntoLines(
+          data[field.key].value1,
+          50,
+          fontSize,
+          font,
+        );
+        const lines2 = this.splitTextIntoLines(
+          data[field.key].value2,
+          140,
+          fontSize,
+          font,
+        );
+        const maxLines = Math.max(lines1.length, lines2.length, 1);
+        const cellHeight = maxLines * (fontSize + 5); // 5 es el espaciado entre líneas
+
+        // Ajusta la coordenada y del rectángulo para alinearlo con la etiqueta
+        const rectY = yFields - fontSize + 3; // Ajusta "3" si es necesario
+
+        // Dibuja los rectángulos
         page.drawRectangle({
           x: xFields + 100,
-          y: yFields - 5,
+          y: rectY,
           width: 50,
-          height: rowHeight,
+          height: cellHeight,
           borderColor: rgb(0.635, 0.635, 0.635),
           borderWidth: 1,
         });
 
         page.drawRectangle({
           x: xFields + 160,
-          y: yFields - 5,
+          y: rectY,
           width: 140,
-          height: rowHeight,
+          height: cellHeight,
           borderColor: rgb(0.635, 0.635, 0.635),
           borderWidth: 1,
         });
 
-        page.drawText(data[field.key].value1, {
-          x: xFields + 110,
-          y: yFields,
-          size: fontSize,
-          font,
-          color: rgb(0, 0, 0),
+        // Calcula la posición y del texto dentro del rectángulo
+        const textYPosition1 = rectY + cellHeight - fontSize;
+
+        lines1.forEach((line, lineIndex) => {
+          page.drawText(line, {
+            x: xFields + 110,
+            y: textYPosition1 - lineIndex * (fontSize + 5),
+            size: fontSize,
+            font: font,
+            color: rgb(0, 0, 0),
+          });
         });
 
-        page.drawText(data[field.key].value2, {
-          x: xFields + 170,
-          y: yFields,
-          size: fontSize,
-          font,
-          color: rgb(0, 0, 0),
+        const textYPosition2 = rectY + cellHeight - fontSize;
+
+        lines2.forEach((line, lineIndex) => {
+          page.drawText(line, {
+            x: xFields + 170,
+            y: textYPosition2 - lineIndex * (fontSize + 5),
+            size: fontSize,
+            font: font,
+            color: rgb(0, 0, 0),
+          });
         });
 
-        yFields -= 30;
+        // Actualiza yFields para el siguiente campo, usando el nuevo espaciado vertical
+        yFields = rectY - verticalSpacing;
+      } else {
+        // Campos con valor simple
+        const lines = this.splitTextIntoLines(
+          data[field.key],
+          200,
+          fontSize,
+          font,
+        );
+        const cellHeight = Math.max(lines.length, 1) * (fontSize + 5);
 
-        return;
+        const rectY = yFields - fontSize + 3;
+
+        page.drawRectangle({
+          x: xFields + 100,
+          y: rectY,
+          width: 200,
+          height: cellHeight,
+          borderColor: rgb(0.635, 0.635, 0.635),
+          borderWidth: 1,
+        });
+
+        const textYPosition = rectY + cellHeight - fontSize;
+
+        lines.forEach((line, lineIndex) => {
+          page.drawText(line, {
+            x: xFields + 110,
+            y: textYPosition - lineIndex * (fontSize + 5),
+            size: fontSize,
+            font: font,
+            color: rgb(0, 0, 0),
+          });
+        });
+
+        // Actualiza yFields para el siguiente campo, usando el nuevo espaciado vertical
+        yFields = rectY - verticalSpacing;
       }
 
-      page.drawRectangle({
-        x: xFields + 100,
-        y: yFields - 5,
-        width: 200,
-        height: rowHeight,
-        borderColor: rgb(0.635, 0.635, 0.635),
-        borderWidth: 1,
-      });
-
-      page.drawText(data[field.key], {
-        x: xFields + 110,
-        y: yFields,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
-
-      yFields -= 30;
+      // Verificar si se necesita una nueva página
+      if (yFields - rowHeight < footerFontSize + footerMargin) {
+        page = pdfDoc.addPage(PageSizes.Letter);
+        yFields = height - 50;
+      }
     });
 
-    page.drawRectangle({
-      x: xFields + 90,
-      y: yFields - 5,
-      width: 40,
-      height: rowHeight,
-      borderColor: rgb(0.635, 0.635, 0.635),
-      borderWidth: 1,
-    });
-
-    page.drawRectangle({
-      x: xFields + 130,
-      y: yFields - 5,
-      width: 90,
-      height: rowHeight,
-      borderColor: rgb(0.635, 0.635, 0.635),
-      borderWidth: 1,
-    });
-
-    page.drawRectangle({
-      x: xFields + 220,
-      y: yFields - 5,
-      width: 80,
-      height: rowHeight,
-      borderColor: rgb(0.635, 0.635, 0.635),
-      borderWidth: 1,
-    });
-
-    page.drawText('Cuota', {
-      x: xFields + 95,
+    page.drawText('Cuotas:', {
+      x: xFields,
       y: yFields,
       size: fontSize,
-      font,
+      font: fontBold,
       color: rgb(0, 0, 0),
     });
-
-    page.drawText('Fecha', {
-      x: xFields + 135,
-      y: yFields,
-      size: fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    page.drawText('Valor', {
-      x: xFields + 225,
-      y: yFields,
-      size: fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    yFields -= 20;
 
     data.cuotasTotales.forEach(
       (cuota: { numCuota: any; fecha: string; valor: string }) => {
@@ -1357,29 +1403,28 @@ export class ReportesService {
     font: any,
     fontBold: any,
   ): Promise<Uint8Array> {
-    const page = pdfDoc.addPage(PageSizes.Letter);
-    const { height } = page.getSize();
+    let page = pdfDoc.addPage(PageSizes.Letter);
+    const { width, height } = page.getSize();
 
     const logoDims = logoImage.scale(0.5); // Escalar la imagen si es necesario
 
     const fontSize = 8;
-    // const footerFontSize = 8;
+    const footerFontSize = 8;
+    const footerMargin = 10;
+    const rowHeight = 20;
 
-    // Dibujar el logo en la página
+    // Dibujar el logo
     page.drawImage(logoImage, {
       x: 35,
-      y:
-        logoDims.height > 90
-          ? height - logoDims.height
-          : height - logoDims.height - 20,
+      y: height - logoDims.height - 20,
       width: logoDims.width,
-      height: logoDims.height > 90 ? logoDims.height - 20 : logoDims.height,
+      height: logoDims.height,
     });
 
     // Establecer las fuentes para el texto
     pdfDoc.registerFontkit(fontkit);
-    // Título
-    // Título: "REPORTE DE LEADS"
+
+    // Título y fechas
     page.drawText('REPORTE DE LEADS', {
       x: 35,
       y: height - 130,
@@ -1400,7 +1445,7 @@ export class ReportesService {
       x: 35,
       y: height - 180,
       size: fontSize,
-      font: font,
+      font,
       color: rgb(0, 0, 0),
     });
 
@@ -1416,14 +1461,13 @@ export class ReportesService {
       x: 235,
       y: height - 180,
       size: fontSize,
-      font: font,
+      font,
       color: rgb(0, 0, 0),
     });
 
     // Tabla de datos
     const tableTop = height - 200;
     const tableLeft = 35;
-    const rowHeight = 20;
     let yPosition = tableTop;
 
     const headers = [
@@ -1433,6 +1477,7 @@ export class ReportesService {
     ];
     const columnWidths = [240, 150, 150];
 
+    // Dibujar los encabezados de la tabla
     headers.forEach((header, i) => {
       const xPosition =
         tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
@@ -1450,7 +1495,7 @@ export class ReportesService {
       // Dibujar el texto del encabezado
       page.drawText(header.label, {
         x: xPosition + 5, // Padding para el texto
-        y: yPosition - fontSize - 2, // Ajuste adicional para evitar superposición
+        y: yPosition - fontSize - 5, // Ajuste adicional para evitar superposición
         size: fontSize,
         font: font,
         color: rgb(0, 0, 0),
@@ -1460,13 +1505,14 @@ export class ReportesService {
     // Ajustar yPosition para empezar con las filas de datos
     yPosition -= rowHeight;
 
-    // Dibujar filas de datos y bordes
+    // Dibujar las filas de datos
     data.forEach((row: { [x: string]: string }) => {
       let maxLines = 1; // Para almacenar la cantidad máxima de líneas en una fila
 
-      // Calcular el máximo de líneas para cualquier columna en la fila actual
+      // Calcular el máximo de líneas en esta fila
       headers.forEach((header, i) => {
         const cellText = row[header.key] || '';
+        console.log(cellText);
         const lines = this.splitTextIntoLines(
           cellText.toString(),
           columnWidths[i] - 10,
@@ -1476,12 +1522,44 @@ export class ReportesService {
         maxLines = Math.max(maxLines, lines.length);
       });
 
-      /* Dibujar el contenido y los bordes de cada celda,
-    basándose en el máximo de líneas */
+      const cellHeight = maxLines * rowHeight;
+      const spaceForFooter = footerMargin + 85 + footerFontSize * 4;
+
+      // Verificar si se necesita una nueva página
+      if (yPosition - cellHeight < spaceForFooter) {
+        page = pdfDoc.addPage(PageSizes.Letter);
+        yPosition = height - 50;
+
+        // Redibujar los encabezados en la nueva página
+        headers.forEach((header, i) => {
+          const xPosition =
+            tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
+
+          page.drawRectangle({
+            x: xPosition,
+            y: yPosition - rowHeight,
+            width: columnWidths[i],
+            height: rowHeight,
+            borderColor: rgb(0, 0, 0),
+            borderWidth: 1,
+          });
+
+          page.drawText(header.label, {
+            x: xPosition + 5,
+            y: yPosition - fontSize - 5,
+            size: fontSize,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+        });
+
+        yPosition -= rowHeight;
+      }
+
+      // Dibujar cada celda de la fila
       headers.forEach((header, i) => {
         const xPosition =
           tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
-        const cellHeight = maxLines * rowHeight;
 
         // Dibujar el rectángulo de la celda
         page.drawRectangle({
@@ -1493,33 +1571,38 @@ export class ReportesService {
           borderWidth: 1,
         });
 
-        // Obtener el valor de la celda correspondiente usando la clave correcta
         const cellText = row[header.key] || '';
         const lines = this.splitTextIntoLines(
-          cellText.toString(),
+          cellText,
           columnWidths[i] - 10,
           fontSize,
           font,
         );
 
+        // Dibujar cada línea de texto en la celda
         lines.forEach((line, lineIndex) => {
+          const textYPosition =
+            yPosition - (lineIndex + 1) * fontSize - 5 - lineIndex * 5;
+
           page.drawText(line, {
             x: xPosition + 5,
-            y: yPosition - lineIndex * rowHeight - 15,
+            y: textYPosition,
             size: fontSize,
-            font: font,
+            font,
             color: rgb(0, 0, 0),
           });
         });
       });
 
       // Ajustar yPosition para la siguiente fila
-      yPosition -= maxLines * rowHeight;
+      yPosition -= cellHeight;
     });
 
-    /* pdfDoc.getPages().forEach((p) => {
-    drawFooter(p, font, footerFontSize, width);
-  }); */
+    // Dibujar el pie de página si es necesario
+    pdfDoc.getPages().forEach((p) => {
+      this.drawFooter(p, fontBold, footerFontSize, width);
+    });
+
     return await pdfDoc.save();
   }
 
@@ -1542,6 +1625,7 @@ export class ReportesService {
     const fontSize = 8;
     const footerFontSize = 8;
     const footerMargin = 10;
+    const rowHeight = 20; // Altura base de una fila (para una línea de texto)
 
     // Dibujar el logo en la página
     page.drawImage(logoImage, {
@@ -1570,7 +1654,6 @@ export class ReportesService {
     // Tabla de datos
     const tableTop = height - 160;
     const tableLeft = 35;
-    const rowHeight = 20;
     let yPosition = tableTop;
 
     const headers = [
@@ -1581,8 +1664,9 @@ export class ReportesService {
       { label: 'Correo', key: 'email' },
       { label: 'Teléfono', key: 'telefono' },
     ];
-    const columnWidths = [20, 90, 100, 100, 150, 66];
+    const columnWidths = [30, 90, 100, 100, 150, 66];
 
+    // 1. Dibujar los encabezados de la tabla
     headers.forEach((header, i) => {
       const xPosition =
         tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
@@ -1600,7 +1684,7 @@ export class ReportesService {
       // Dibujar el texto del encabezado
       page.drawText(header.label, {
         x: xPosition + 5, // Padding para el texto
-        y: yPosition - fontSize - 2, // Ajuste adicional para evitar superposición
+        y: yPosition - fontSize - 5, // Ajuste adicional para evitar superposición
         size: fontSize,
         font: font,
         color: rgb(0, 0, 0),
@@ -1610,39 +1694,61 @@ export class ReportesService {
     // Ajustar yPosition para empezar con las filas de datos
     yPosition -= rowHeight;
 
-    // Dibujar filas de datos y bordes
-    data.forEach((row: { [x: string]: string }, index: number) => {
+    // 2. Dibujar filas de datos y bordes
+    data.forEach((row: { [x: string]: string }) => {
       let maxLines = 1; // Para almacenar la cantidad máxima de líneas en una fila
 
-      // Calcular el máximo de líneas para cualquier columna en la fila actual
+      // 2.1. Calcular el máximo de líneas para cualquier columna en la fila actual
       headers.forEach((header, i) => {
         const cellText = row[header.key] || '';
         const lines = this.splitTextIntoLines(
           cellText.toString(),
-          columnWidths[i] + 30,
+          columnWidths[i] - 10, // Restar padding para que el texto no se corte
           fontSize,
           font,
         );
         maxLines = Math.max(maxLines, lines.length);
       });
 
+      // 2.2. Verificar si hay espacio suficiente en la página para esta fila
+      const cellHeight = maxLines * rowHeight;
       const spaceForFooter = footerMargin + 85 + footerFontSize * 4;
-      // eslint-disable-next-line max-len
-      if (
-        index === data.length - 1 &&
-        yPosition - maxLines * rowHeight < spaceForFooter
-      ) {
-        page = pdfDoc.addPage([1280, 792]);
+
+      if (yPosition - cellHeight < spaceForFooter) {
+        // Añadir nueva página si no hay espacio suficiente
+        page = pdfDoc.addPage(PageSizes.Letter);
         yPosition = height - 50; // Reiniciar yPosition para la nueva página
-      } else if (yPosition - maxLines * rowHeight < 60 + footerMargin) {
-        page = pdfDoc.addPage([1280, 792]);
-        yPosition = height - 50; // Reiniciar yPosition para la nueva página
+
+        // Redibujar los encabezados en la nueva página
+        headers.forEach((header, i) => {
+          const xPosition =
+            tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
+
+          page.drawRectangle({
+            x: xPosition,
+            y: yPosition - rowHeight,
+            width: columnWidths[i],
+            height: rowHeight,
+            borderColor: rgb(0, 0, 0),
+            borderWidth: 1,
+          });
+
+          page.drawText(header.label, {
+            x: xPosition + 5,
+            y: yPosition - fontSize - 5,
+            size: fontSize,
+            font: fontBold,
+            color: rgb(0, 0, 0),
+          });
+        });
+
+        yPosition -= rowHeight;
       }
 
+      // 2.3. Dibujar cada celda de la fila
       headers.forEach((header, i) => {
         const xPosition =
           tableLeft + columnWidths.slice(0, i).reduce((a, b) => a + b, 0);
-        const cellHeight = maxLines * rowHeight;
 
         // Dibujar el rectángulo de la celda
         page.drawRectangle({
@@ -1654,19 +1760,23 @@ export class ReportesService {
           borderWidth: 1,
         });
 
-        // Obtener el valor de la celda correspondiente usando la clave correcta
-        const cellText = row[header.key] || '';
+        // Obtener el texto de la celda y dividirlo en líneas
+        const cellText = row[header.key] ? row[header.key].toString() : '';
         const lines = this.splitTextIntoLines(
-          cellText.toString(),
+          cellText,
           columnWidths[i] - 10,
           fontSize,
           font,
         );
 
+        // 2.4. Dibujar cada línea de texto en la celda
         lines.forEach((line, lineIndex) => {
+          const textYPosition =
+            yPosition - (lineIndex + 1) * fontSize - 5 - lineIndex * 5;
+
           page.drawText(line, {
             x: xPosition + 5,
-            y: yPosition - lineIndex * rowHeight - 15,
+            y: textYPosition,
             size: fontSize,
             font: font,
             color: rgb(0, 0, 0),
@@ -1674,10 +1784,11 @@ export class ReportesService {
         });
       });
 
-      // Ajustar yPosition para la siguiente fila
-      yPosition -= maxLines * rowHeight;
+      // 2.5. Ajustar yPosition para la siguiente fila
+      yPosition -= cellHeight;
     });
 
+    // 3. Dibujar el pie de página en la última página
     pdfDoc.getPages().forEach((p, index) => {
       if (index === pdfDoc.getPageCount() - 1) {
         this.drawFooter(p, font, footerFontSize, width);

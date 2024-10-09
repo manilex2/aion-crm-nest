@@ -19,27 +19,23 @@ export class ContificoService {
    * Obtener documentos de Contifico y guardarlos/actualizarlos en Firestore.
    * @param body Datos de la solicitud
    */
-  async contificoDocuments(body: any): Promise<string> {
+  async contificoDocuments(): Promise<string> {
     const db = getFirestore();
     const batch = db.batch();
 
     try {
-      const { fecha } = body;
+      const date = new Date();
 
-      if (!fecha) {
-        throw new HttpException(
-          'BAD REQUEST: Falta el parámetro "fecha"',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      const date = new Date(fecha);
+      // Obtener la fecha en formato DD/MM/YYYY en zona horaria de Ecuador
+      const ecuadorDateString = date.toLocaleDateString('en-GB', {
+        timeZone: 'America/Guayaquil',
+      });
       let docs = [];
 
       // Realizar la solicitud a la API de Contifico
       await axios({
         method: 'GET',
-        url: `${this.configService.get<string>('CONTIFICO_URI_DOCUMENT')}?tipo_registro=CLI&fecha_emision=${date.toLocaleDateString('en-GB')}`,
+        url: `${this.configService.get<string>('CONTIFICO_URI_DOCUMENT')}?tipo_registro=CLI&fecha_emision=${ecuadorDateString}`,
         headers: {
           Authorization: this.configService.get<string>('CONTIFICO_AUTH_TOKEN'),
         },
@@ -91,6 +87,109 @@ export class ContificoService {
       await batch.commit();
 
       return `${docs.length} documentos guardados o actualizados correctamente`;
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Error interno del servidor',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Actualizar el estado de los documentos en Firestore según el estado actual en Contifico.
+   * Consulta los documentos con fechaEmision en los últimos 90 días y actualiza su estado si es necesario.
+   */
+  async updateDocumentStates(): Promise<string> {
+    const db = getFirestore();
+    let batch = db.batch();
+    let batchCounter = 0;
+
+    try {
+      // Obtener la fecha actual en zona horaria de Ecuador
+      const today = new Date();
+      const todayEcuadorString = today.toLocaleString('en-US', {
+        timeZone: 'America/Guayaquil',
+      });
+      const todayEcuador = new Date(todayEcuadorString);
+      todayEcuador.setHours(0, 0, 0, 0);
+
+      // Calcular la fecha de hace 90 días
+      const ninetyDaysAgo = new Date(todayEcuador);
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      // Convertir fechas a Timestamps de Firestore
+      const todayTimestamp = Timestamp.fromDate(todayEcuador);
+      const ninetyDaysAgoTimestamp = Timestamp.fromDate(ninetyDaysAgo);
+
+      // Consultar documentos con fechaEmision entre hace 90 días y hoy
+      const documentosSnapshot = await db
+        .collection('documentos')
+        .where('fechaEmision', '>=', ninetyDaysAgoTimestamp)
+        .where('fechaEmision', '<=', todayTimestamp)
+        .get();
+
+      const documentos = documentosSnapshot.docs;
+      let updatedCount = 0;
+
+      // Procesar cada documento
+      for (const doc of documentos) {
+        const data = doc.data();
+        const idDocumento = data.idDocumento;
+        const firestoreEstado = data.estado;
+
+        try {
+          // Realizar la solicitud a la API de Contifico
+          const response = await axios({
+            method: 'GET',
+            url: `https://api.contifico.com/sistema/api/v1/documento/${idDocumento}`,
+            headers: {
+              Authorization: this.configService.get<string>(
+                'CONTIFICO_AUTH_TOKEN',
+              ),
+            },
+          })
+            .then((response) => {
+              return response.data;
+            })
+            .catch((err) => {
+              console.error(err);
+              throw new HttpException(
+                'Error al obtener documentos de Contifico',
+                HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            });
+
+          const contificoEstado = response.estado;
+          console.log(response);
+
+          // Si el estado es diferente, actualizar el documento en Firestore
+          if (firestoreEstado !== contificoEstado) {
+            batch.update(doc.ref, { estado: contificoEstado });
+            updatedCount++;
+            batchCounter++;
+
+            // Limitar el batch a 500 operaciones (límite de Firestore)
+            if (batchCounter === 500) {
+              await batch.commit();
+              batch = db.batch(); // Iniciar un nuevo batch
+              batchCounter = 0;
+            }
+          }
+        } catch (err) {
+          console.error(
+            `Error al obtener el documento ${idDocumento}:`,
+            err.message,
+          );
+          // Continuar con el siguiente documento
+        }
+      }
+
+      // Confirmar cualquier operación restante en el batch
+      if (batchCounter > 0) {
+        await batch.commit();
+      }
+
+      return `${updatedCount} documentos actualizados correctamente`;
     } catch (error) {
       throw new HttpException(
         error.message || 'Error interno del servidor',

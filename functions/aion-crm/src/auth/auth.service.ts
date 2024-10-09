@@ -89,6 +89,7 @@ export class AuthService {
         enable: body.enable,
         institutionId: instRef,
         firstLogin: true,
+        supportTeam: false,
       };
 
       await newUserRef.set(usuario);
