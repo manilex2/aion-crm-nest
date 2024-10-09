@@ -1224,7 +1224,7 @@ export class ReportesService {
           page.drawRectangle({
             x: xFields + 90,
             y: yFields - 5,
-            width: 40,
+            width: 50,
             height: rowHeight,
             borderColor: rgb(0.635, 0.635, 0.635),
             borderWidth: 1,
@@ -1233,7 +1233,7 @@ export class ReportesService {
           page.drawRectangle({
             x: xFields + 130,
             y: yFields - 5,
-            width: 90,
+            width: 80,
             height: rowHeight,
             borderColor: rgb(0.635, 0.635, 0.635),
             borderWidth: 1,
@@ -1248,7 +1248,7 @@ export class ReportesService {
             borderWidth: 1,
           });
 
-          page.drawText('#', {
+          page.drawText('Cuota', {
             x: xFields + 95,
             y: yFields,
             size: fontSize,
@@ -1774,7 +1774,7 @@ export class ReportesService {
       { label: 'Correo', key: 'email' },
       { label: 'Teléfono', key: 'telefono' },
     ];
-    const columnWidths = [30, 90, 100, 100, 150, 66];
+    const columnWidths = [30, 120, 100, 100, 120, 66];
 
     // 1. Dibujar los encabezados de la tabla
     headers.forEach((header, i) => {
