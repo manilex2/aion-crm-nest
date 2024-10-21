@@ -463,7 +463,15 @@ export class ReportesService {
 
   // Fourth function: reportePDFSeguimiento
   async reportePDFSeguimiento(req: Request): Promise<string[]> {
-    const { source, lastLeadStatus, logoUrl, nombre, fecha } = req.body;
+    const {
+      source,
+      lastLeadStatus,
+      logoUrl,
+      nombre,
+      initDate,
+      finalDate,
+      maxContacts,
+    } = req.body;
 
     if (!Array.isArray(lastLeadStatus) || lastLeadStatus.length === 0) {
       throw new HttpException(
@@ -493,30 +501,55 @@ export class ReportesService {
       );
     }
 
-    if (!fecha) {
+    if (!maxContacts) {
       throw new HttpException(
-        'No se proporcionó la fecha',
+        'No se proporcionó la cantidad de contactos',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    const date = DateTime.fromFormat(fecha, 'yyyy-MM-dd HH:mm:ss.SSS');
+    if (!initDate) {
+      throw new HttpException(
+        'No se proporcionó la fecha inicial',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!finalDate) {
+      throw new HttpException(
+        'No se proporcionó la fecha final',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Convertimos la fecha a medianoche (12:00 AM) independientemente de la zona horaria.
+    const dateInit = DateTime.fromFormat(initDate, 'yyyy-MM-dd HH:mm:ss.SSS', {
+      zone: 'utc',
+    }).set({ hour: 0, minute: 0, second: 0, millisecond: 0 });
+
+    const dateFinal = DateTime.fromFormat(
+      finalDate,
+      'yyyy-MM-dd HH:mm:ss.SSS',
+      { zone: 'utc' },
+    ).set({ hour: 0, minute: 0, second: 0, millisecond: 0 });
 
     try {
       const leadsContactFailData = [];
       let limitReached = false;
 
-      for (const src of source) {
+      for (const statusId of lastLeadStatus) {
         if (limitReached) break;
 
-        for (const statusId of lastLeadStatus) {
+        for (const src of source) {
           if (limitReached) break;
 
           const querySnapshot = await this.db
             .collection('contactos')
-            .where('source', '==', src)
             .where('lastLeadStatus', '==', statusId)
-            .limit(100 - leadsContactFailData.length)
+            .where('source', '==', src)
+            .where('nextActivity', '>=', dateInit.toJSDate())
+            .where('nextActivity', '<=', dateFinal.toJSDate())
+            .limit(maxContacts - leadsContactFailData.length)
             .get();
 
           const leads = querySnapshot.docs.map((leadContact) => ({
@@ -525,7 +558,7 @@ export class ReportesService {
           }));
           leadsContactFailData.push(...leads);
 
-          if (leadsContactFailData.length >= 100) {
+          if (leadsContactFailData.length >= maxContacts) {
             limitReached = true;
             break;
           }
@@ -534,7 +567,7 @@ export class ReportesService {
 
       if (leadsContactFailData.length < 1) {
         throw new HttpException(
-          'No se encontraron documentos para los filtros especificados.',
+          'No se encontraron contactos para los filtros especificados.',
           HttpStatus.NOT_FOUND,
         );
       }
@@ -557,9 +590,10 @@ export class ReportesService {
         nombre,
       });
 
-      const formattedDate = date.toFormat('dd-MM-yyyy');
+      const formattedInitDate = dateInit.toFormat('dd-MM-yyyy');
+      const formattedFinalDate = dateFinal.toFormat('dd-MM-yyyy');
 
-      const destination = `pdfs/seguimiento/${nombre}_${formattedDate}.pdf`;
+      const destination = `pdfs/seguimiento/${nombre}_${formattedInitDate}_${formattedFinalDate}.pdf`;
 
       const file = this.storage.file(destination);
       await file
@@ -585,7 +619,8 @@ export class ReportesService {
 
       const docRef = await this.db.collection('pdfSeguimientos').add({
         url: url,
-        fecha: date.toJSDate(),
+        fechaInicio: dateInit.toJSDate(),
+        fechaFin: dateFinal.toJSDate(),
         contactos: leadsContactFailData.map((row) => row.docReference),
         name: nombre,
       });
