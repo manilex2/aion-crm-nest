@@ -1,9 +1,9 @@
 import {
   Controller,
+  Get,
   Header,
   HttpException,
   HttpStatus,
-  Post,
   Res,
 } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
@@ -13,7 +13,7 @@ import { Response } from 'express';
 export class WhatsappController {
   constructor(private readonly whatsappService: WhatsappService) {}
 
-  @Post('send-notifications')
+  @Get('send-notifications')
   @Header('Content-Type', 'application/json')
   async sendNotifications(@Res() res: Response) {
     try {

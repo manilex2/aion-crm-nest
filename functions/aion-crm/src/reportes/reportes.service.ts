@@ -433,7 +433,6 @@ export class ReportesService {
           },
         })
         .then(async () => {
-          console.log('Éxito al guardar pdf en Firebase Storage.');
           await file.makePublic();
         })
         .catch((err) => {
@@ -1657,7 +1656,6 @@ export class ReportesService {
       // Calcular el máximo de líneas en esta fila
       headers.forEach((header, i) => {
         const cellText = row[header.key] || '';
-        console.log(cellText);
         const lines = this.splitTextIntoLines(
           cellText.toString(),
           columnWidths[i] - 10,
