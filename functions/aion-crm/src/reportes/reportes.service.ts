@@ -251,7 +251,7 @@ export class ReportesService {
                   style: 'currency',
                   currency: 'USD',
                 })
-              : ''
+              : '$0.00'
           }`,
         },
         firstExpiration: `${
