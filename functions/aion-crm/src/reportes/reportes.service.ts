@@ -362,7 +362,7 @@ export class ReportesService {
       const fechaStartPDF = new Date(startDate);
       const fechaEndPDF = new Date(finalDate);
 
-      // Paso 1: Traer los leadFollowUps en el rango de fechas con status no nulo
+      // Paso 1: Traer todos los registros en el rango de fechas con status no nulo
       const leadFollowUpsData = (
         await this.db
           .collection('leadFollowUps')
@@ -372,6 +372,8 @@ export class ReportesService {
           .get()
       ).docs.map((leadFollow) => leadFollow.data());
 
+      console.log('Total registros obtenidos:', leadFollowUpsData.length);
+
       if (leadFollowUpsData.length < 1) {
         throw new HttpException(
           'No se encontraron documentos en el rango de fechas especificado.',
@@ -379,26 +381,34 @@ export class ReportesService {
         );
       }
 
-      // Paso 2: Filtrar por `leadReference` único y quedarnos solo con el más reciente para cada uno
+      // Paso 2: Crear un mapa que almacene solo el registro más reciente por `leadReference`
       const uniqueLeadsMap: Record<string, any> = {};
 
       leadFollowUpsData.forEach((lead) => {
-        const reference = lead.leadReference;
-        const currentLead = uniqueLeadsMap[reference];
+        // Obtenemos el ID único del DocumentReference de leadReference
+        const referenceId = lead.leadReference.id;
+        const leadFollowUpDate = new Date(lead.followUpDate);
 
-        // Si no existe en el mapa o si es más reciente, actualizar el mapa
+        // Verificamos si el leadReference es único y si se actualiza con el más reciente
+        console.log('Procesando leadReference ID:', referenceId);
+
+        // Si no existe en el mapa o si el registro actual es más reciente, lo actualizamos en el mapa
         if (
-          !currentLead ||
-          new Date(lead.followUpDate) > new Date(currentLead.followUpDate)
+          !uniqueLeadsMap[referenceId] ||
+          leadFollowUpDate > new Date(uniqueLeadsMap[referenceId].followUpDate)
         ) {
-          uniqueLeadsMap[reference] = lead;
+          uniqueLeadsMap[referenceId] = lead;
         }
       });
 
       // Convertir el mapa a un arreglo de `leadFollowUps` únicos y recientes
       const uniqueLeads = Object.values(uniqueLeadsMap);
+      console.log(
+        'Total registros únicos después de filtro:',
+        uniqueLeads.length,
+      );
 
-      // Paso 3: Contar la cantidad de leads por estado y calcular el porcentaje
+      // Paso 3: Calcular la cantidad de leads por estado y el porcentaje
       const resultadosMap: Record<
         string,
         { estado: string; cantidadDeLeads: number; porcentaje: string }
@@ -419,7 +429,8 @@ export class ReportesService {
         }
       });
 
-      const resultados = Object.values(resultadosMap).map((item) => {
+      // Calcular los porcentajes
+      const resultados = Object.values(resultadosMap).map((item: any) => {
         item.porcentaje = `${((item.cantidadDeLeads / totalLeads) * 100).toFixed(1)}%`;
         return item;
       });
