@@ -362,6 +362,7 @@ export class ReportesService {
       const fechaStartPDF = new Date(startDate);
       const fechaEndPDF = new Date(finalDate);
 
+      // Paso 1: Traer los leadFollowUps en el rango de fechas con status no nulo
       const leadFollowUpsData = (
         await this.db
           .collection('leadFollowUps')
@@ -378,40 +379,47 @@ export class ReportesService {
         );
       }
 
-      // Filtrar para obtener solo el más reciente de cada leadReference
+      // Paso 2: Filtrar por `leadReference` único y quedarnos solo con el más reciente para cada uno
       const uniqueLeadsMap: Record<string, any> = {};
+
       leadFollowUpsData.forEach((lead) => {
         const reference = lead.leadReference;
         const currentLead = uniqueLeadsMap[reference];
 
         // Si no existe en el mapa o si es más reciente, actualizar el mapa
-        if (!currentLead || lead.followUpDate > currentLead.followUpDate) {
+        if (
+          !currentLead ||
+          new Date(lead.followUpDate) > new Date(currentLead.followUpDate)
+        ) {
           uniqueLeadsMap[reference] = lead;
         }
       });
 
-      // Convertir el mapa a un arreglo para el siguiente procesamiento
+      // Convertir el mapa a un arreglo de `leadFollowUps` únicos y recientes
       const uniqueLeads = Object.values(uniqueLeadsMap);
 
-      const resultadosMap = {};
-      let totalLeads = 0;
+      // Paso 3: Contar la cantidad de leads por estado y calcular el porcentaje
+      const resultadosMap: Record<
+        string,
+        { estado: string; cantidadDeLeads: number; porcentaje: string }
+      > = {};
+      const totalLeads = uniqueLeads.length;
 
       uniqueLeads.forEach((lead) => {
         const estado = lead.status;
-        totalLeads++;
 
         if (resultadosMap[estado]) {
           resultadosMap[estado].cantidadDeLeads += 1;
         } else {
           resultadosMap[estado] = {
-            estado: estado,
+            estado,
             cantidadDeLeads: 1,
-            porcentaje: 0,
+            porcentaje: '0%',
           };
         }
       });
 
-      const resultados = Object.values(resultadosMap).map((item: any) => {
+      const resultados = Object.values(resultadosMap).map((item) => {
         item.porcentaje = `${((item.cantidadDeLeads / totalLeads) * 100).toFixed(1)}%`;
         return item;
       });
