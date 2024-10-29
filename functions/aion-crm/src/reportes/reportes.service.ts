@@ -378,13 +378,25 @@ export class ReportesService {
         );
       }
 
-      const formattedStart = this.formatDate(start, true);
-      const formattedEnd = this.formatDate(end, true);
+      // Filtrar para obtener solo el más reciente de cada leadReference
+      const uniqueLeadsMap: Record<string, any> = {};
+      leadFollowUpsData.forEach((lead) => {
+        const reference = lead.leadReference;
+        const currentLead = uniqueLeadsMap[reference];
+
+        // Si no existe en el mapa o si es más reciente, actualizar el mapa
+        if (!currentLead || lead.followUpDate > currentLead.followUpDate) {
+          uniqueLeadsMap[reference] = lead;
+        }
+      });
+
+      // Convertir el mapa a un arreglo para el siguiente procesamiento
+      const uniqueLeads = Object.values(uniqueLeadsMap);
 
       const resultadosMap = {};
       let totalLeads = 0;
 
-      leadFollowUpsData.forEach((lead) => {
+      uniqueLeads.forEach((lead) => {
         const estado = lead.status;
         totalLeads++;
 
@@ -403,6 +415,9 @@ export class ReportesService {
         item.porcentaje = `${((item.cantidadDeLeads / totalLeads) * 100).toFixed(1)}%`;
         return item;
       });
+
+      const formattedStart = this.formatDate(start, true);
+      const formattedEnd = this.formatDate(end, true);
 
       const pdfBytes = await this.generatePDF('lead-status', resultados, {
         logoUrl,
