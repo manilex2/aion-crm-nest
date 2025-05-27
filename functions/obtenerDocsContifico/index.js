@@ -16,7 +16,7 @@ setGlobalOptions({
 // Programar la función
 exports.obtenerDocsContifico = onSchedule({
   timeZone: "America/Guayaquil",
-  schedule: "30 21 * * 1-5",
+  schedule: "30 21 * * 1-10",
 }, async () => {
   try {
     // Realiza una solicitud HTTP a la función existente
