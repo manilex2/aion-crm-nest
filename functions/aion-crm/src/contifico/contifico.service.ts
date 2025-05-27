@@ -76,10 +76,57 @@ export class ContificoService {
           ref: document.ref,
         }));
 
+        const cliente = (
+          await db
+            .collection('contactos')
+            .where('idNumber', '==', doc.cliente.cedula)
+            .get()
+        ).docs.map((contact) => {
+          return contact;
+        });
+
         if (exist.length > 0) {
+          if (cliente && cliente.length > 0) {
+            const payment = (
+              await db
+                .collection('payments')
+                .where('contactID', '==', cliente[0].ref)
+                .where('month', '==', date.getMonth() + 1)
+                .where('year', '==', date.getFullYear())
+                .where('docRelationated', '!=', true)
+                .get()
+            ).docs.map((pay) => {
+              return pay;
+            });
+            if (payment && payment.length > 0) {
+              batch.update(payment[0].ref, {
+                idDoc: exist[0].ref,
+                docRelationated: true,
+              });
+            }
+          }
           batch.update(exist[0].ref, data);
         } else {
           const newDocRef = db.collection('documentos').doc();
+          if (cliente.length > 0) {
+            const payment = (
+              await db
+                .collection('payments')
+                .where('contactID', '==', cliente[0].ref)
+                .where('month', '==', date.getMonth() + 1)
+                .where('year', '==', date.getFullYear())
+                .where('docRelationated', '!=', true)
+                .get()
+            ).docs.map((pay) => {
+              return pay;
+            });
+            if (payment.length > 0) {
+              batch.update(payment[0].ref, {
+                idDoc: newDocRef,
+                docRelationated: true,
+              });
+            }
+          }
           batch.create(newDocRef, data);
         }
       }
