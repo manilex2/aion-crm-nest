@@ -91,6 +91,7 @@ export class ContificoService {
               await db
                 .collection('payments')
                 .where('contactID', '==', cliente[0].ref)
+                .where('paymentType', '==', 'alicuota')
                 .where('month', '==', date.getMonth() + 1)
                 .where('year', '==', date.getFullYear())
                 .where('docRelationated', '!=', true)
