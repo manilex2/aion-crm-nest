@@ -1,7 +1,7 @@
 {
     "name": "whatsapp-notif",
     "version": "1.0.0",
-    "description": "Función que manda notificaciones sobre pagos a las 9:30 a.m. de lunes a viernes en AION CRM",
+    "description": "Función que manda notificaciones sobre pagos vencidos y por vencer en AION CRM",
     "main": "index.js",
     "scripts": {
       "lint": "eslint ."
