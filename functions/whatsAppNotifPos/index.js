@@ -13,14 +13,13 @@ setGlobalOptions({
   memory: "1GiB",
 });
 
-// Programar la función
-exports.whatsAppNotif = onSchedule({
+exports.whatsAppNotifPos = onSchedule({
   timeZone: "America/Guayaquil",
-  schedule: "30 09 * * 1-5",
+  schedule: "30 09 * * 29",
 }, async () => {
   try {
     // Realiza una solicitud HTTP a la función existente
-    const response = await axios.get(`${process.env.URL_FUNCTIONS}/whatsapp/send-notifications`);
+    const response = await axios.get(`${process.env.URL_FUNCTIONS}/whatsapp/send-notifications-pos`);
     console.log("Respuesta de la función:", response.data);
   } catch (error) {
     console.error("Error al llamar a la función:", error);
