@@ -26,3 +26,29 @@ exports.whatsAppNotif = onSchedule({
     console.error("Error al llamar a la función:", error);
   }
 });
+
+exports.whatsAppNotifPre = onSchedule({
+  timeZone: "America/Guayaquil",
+  schedule: "30 09 * * 25",
+}, async () => {
+  try {
+    // Realiza una solicitud HTTP a la función existente
+    const response = await axios.get(`${process.env.URL_FUNCTIONS}/whatsapp/send-notifications-pre`);
+    console.log("Respuesta de la función:", response.data);
+  } catch (error) {
+    console.error("Error al llamar a la función:", error);
+  }
+});
+
+exports.whatsAppNotifPos = onSchedule({
+  timeZone: "America/Guayaquil",
+  schedule: "30 09 * * 29",
+}, async () => {
+  try {
+    // Realiza una solicitud HTTP a la función existente
+    const response = await axios.get(`${process.env.URL_FUNCTIONS}/whatsapp/send-notifications-pos`);
+    console.log("Respuesta de la función:", response.data);
+  } catch (error) {
+    console.error("Error al llamar a la función:", error);
+  }
+});
