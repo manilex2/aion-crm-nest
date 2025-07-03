@@ -21,6 +21,7 @@
   },
   "main": "main.js",
   "dependencies": {
+    "@google/genai": "^1.8.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.3",
     "@nestjs/core": "^10.0.0",
