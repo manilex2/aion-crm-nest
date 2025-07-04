@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-require("dotenv").config("./.env");
+require("dotenv").config();
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const admin = require("firebase-admin");
