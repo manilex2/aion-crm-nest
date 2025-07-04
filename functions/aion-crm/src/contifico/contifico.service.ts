@@ -104,7 +104,7 @@ interface ContificoDocument {
       ibpnr: string;
     },
   ];
-  cobros: [];
+  cobros: null | Array<Cobro>;
   documento_relacionado_id: null | string;
   reserva_relacionada: null | string;
   url_: null | string;
@@ -164,7 +164,8 @@ interface ContificoProcessingStats {
     anulacion: number;
     afiliacion: number;
     otros: number;
-    noUnit: number; // Para casos donde falta contacto o unidad
+    noUnit: number; // Para casos donde falta unidad
+    noContact: 0; // Para casos donde falta contacto
     geminiError: number; // Para errores de Gemini
     contificoApiError: number; // Para errores de la API de Contifico
   };
@@ -181,7 +182,7 @@ export class ContificoService {
 
   /**
    * Obtener documentos de Contifico y guardarlos/actualizarlos en Firestore.
-   * @param body Datos de la solicitud
+   * @param ecuadorDateString La fecha en formato DD/MM/YYYY para buscar documentos en Contifico.
    */
   async contificoDocuments(
     ecuadorDateString?: string,
@@ -200,6 +201,7 @@ export class ContificoService {
         anulacion: 0,
         afiliacion: 0,
         otros: 0,
+        noContact: 0, // Nuevo contador
         noUnit: 0,
         geminiError: 0,
         contificoApiError: 0,
@@ -240,7 +242,8 @@ export class ContificoService {
             err.response?.data || err.message,
           );
           stats.skipped.contificoApiError = 1; // Un error por día de API
-          return stats; // Retorna las estadísticas actuales y termina para esta fecha
+          // !--- Retornar aquí para detener la ejecución en caso de error de la API ---!
+          return stats;
         });
 
       stats.totalContificoDocsProcessed = contificoDocs.length;
@@ -264,7 +267,7 @@ export class ContificoService {
         let geminiAnalysisResult: GeminiAnalysisResult[] | null = null;
         try {
           // El prompt instruccional para Gemini
-          const instructionalPrompt = `Analiza la siguiente descripción de un documento de Contifico. Extrae el número de lote (si hay un guion significa que hay otro lote y se llena con la misma información de tipo de pago y meses/años), el tipo de pago (siendo "alicuota" para "Alicuota de mantenimiento" o "Alcance de alicuota de mantenimiento", "anulacion" para "Corrección" o "Anulación", "afiliacion" para "Cuota de afiliación", y "otros" para cualquier otro caso) y los meses/años a los que corresponde. Genera la respuesta en formato JSON de acuerdo al esquema provisto. Descripción: "${doc.descripcion}"`;
+          const instructionalPrompt = `Analiza la siguiente Descripción de un documento de Contifico. Extrae el número de lote (si hay un guion significa que hay otro lote y se llena con la misma información de tipo de pago y meses/años, si es "alicuota" y no tiene puesto lote en Descripción entonces intenta buscarlo en NombreComercial), el tipo de pago (siendo "alicuota" para "Alicuota de mantenimiento" o "Alcance de alicuota de mantenimiento", "anulacion" para "Corrección" o "Anulación", "afiliacion" para "Cuota de afiliación", y "otros" para cualquier otro caso) y los meses/años a los que corresponde. Genera la respuesta en formato JSON de acuerdo al esquema provisto. Descripción: "${doc.descripcion}", NombreComercial: "${doc.persona.nombre_comercial}"`;
 
           // Definición del esquema de respuesta esperado
           const responseSchema: Schema = {
@@ -343,7 +346,7 @@ export class ContificoService {
               throw new Error(`Tipo de pago inválido de Gemini: ${item.tipo}`);
             }
 
-            if (item.tipo === 'alicuota' || item.tipo === 'anulacion') {
+            if (item.tipo === 'alicuota') {
               if (
                 typeof item.lote !== 'number' ||
                 !Array.isArray(item.fechas) ||
@@ -359,7 +362,7 @@ export class ContificoService {
               }
             }
             // Para 'afiliacion' u 'otros', 'lote' y 'fechas' pueden ser opcionales,
-            // por lo que no se valida su existencia aquí si el tipo es 'afiliacion' u 'otros'.
+            // por lo que no se valida su existencia aquí si el tipo es 'otros'.
           }
         } catch (geminiErr) {
           console.warn(
@@ -389,9 +392,11 @@ export class ContificoService {
           contactRef = contactSnapshot.docs[0].ref;
         } else {
           console.warn(
-            `[${ecuadorDateString}] Contacto con cédula ${doc.persona.cedula} no encontrado para el documento ${doc.id}. Se creará el payment sin contactID.`,
+            `[${ecuadorDateString}] Contacto con cédula ${doc.persona.cedula} no encontrado para el documento ${doc.id}.`,
           );
-          // Decisión: si no hay contacto, se salta solo la parte sin contacto
+          // Si no hay contacto, se salta este documento de Contifico.
+          stats.skipped.noContact++;
+          continue; // Pasa al siguiente documento de Contifico
         }
 
         // Iterar sobre los resultados de Gemini (que es un array)
@@ -402,7 +407,8 @@ export class ContificoService {
           // Determinar la unidad y las fechas a procesar según el tipo de pago
           if (
             currentPaymentType === 'alicuota' ||
-            currentPaymentType === 'anulacion'
+            (currentPaymentType === 'anulacion' &&
+              analysisResult.fechas.length > 0)
           ) {
             if (typeof analysisResult.lote !== 'number') {
               console.warn(
@@ -438,7 +444,8 @@ export class ContificoService {
             }
           } else if (
             currentPaymentType === 'afiliacion' ||
-            currentPaymentType === 'otros'
+            currentPaymentType === 'otros' ||
+            currentPaymentType === 'anulacion' // Si la anulación no tiene fechas de Gemini, usa la fecha de emisión
           ) {
             // Para 'afiliacion' y 'otros', usamos la fecha de emisión del documento de Contifico
             if (doc.fecha_emision) {
@@ -487,24 +494,71 @@ export class ContificoService {
             continue;
           }
 
+          // !--- Calcular sumatoriaMontoPagos antes del bucle de fechas ---!
+          let sumatoriaMontoPagos = 0;
+          if (doc.cobros && doc.cobros.length > 0) {
+            sumatoriaMontoPagos = doc.cobros.reduce(
+              (sum, cobro) => sum + parseFloat(cobro.monto),
+              0,
+            );
+          }
+
+          // !--- Calcular realDateTimestamp antes del bucle de fechas ---!
+          let realDateTimestamp: Timestamp | null = null;
+          if (doc.estado === 'C' && doc.cobros && doc.cobros.length > 0) {
+            const lastCobroDateStr = doc.cobros[doc.cobros.length - 1].fecha;
+            const parts = lastCobroDateStr.split('/').map(Number); // Asume DD/MM/YYYY
+            if (parts.length === 3) {
+              // new Date(año, mes-1, día) para UTC
+              realDateTimestamp = Timestamp.fromDate(
+                new Date(Date.UTC(parts[2], parts[1] - 1, parts[0])),
+              );
+            } else {
+              console.warn(
+                `[${ecuadorDateString}] Formato de fecha de cobro inesperado para doc ${doc.id}: ${lastCobroDateStr}. No se pudo parsear realDate.`,
+              );
+            }
+          }
+
           // Crear un payment por cada mes/año devuelto por Gemini para este lote
           for (const fecha of datesToProcess) {
+            // !--- Lógica para planDate (mes siguiente) dentro del bucle de fechas ---!
+            let planMonth = fecha.month;
+            let planYear = fecha.year;
+
+            // Si planDate es el primer día del mes siguiente
+            planMonth++; // Incrementamos el mes
+            if (planMonth > 12) {
+              planMonth = 1; // Si el mes es 13, se vuelve enero
+              planYear++; // y el año siguiente
+            }
+
             // Define el objeto base para el paymentData
             const basePaymentData = {
               contactID: contactRef,
               projectID: projectRef,
               unidadID: unidadRef,
+              // !--- planDate ajustada para el mes siguiente y UTC ---!
               planDate: Timestamp.fromDate(
-                new Date(fecha.year, fecha.month, 1),
+                new Date(Date.UTC(planYear, planMonth - 1, 1)), // planMonth ya está ajustado al siguiente mes, por eso es -1 para Date.UTC
               ),
-              realDate: null,
-              isPaid: false,
+              // !--- realDate ya calculada ---!
+              realDate: realDateTimestamp,
+              // !--- isPaid directamente de doc.estado ---!
+              isPaid: doc.estado === 'C',
               totalValue: parseFloat(doc.total),
-              paymentValue: 0.0,
-              balance: parseFloat(doc.total),
-              paymentMethod: null,
-              paymentNumber: null,
-              lastFollowStatus: 'P', // Por defecto, pendiente
+              // !--- paymentValue, balance, paymentMethod, paymentNumber, lastFollowStatus directamente de doc ---!
+              paymentValue:
+                doc.cobros && doc.cobros.length > 0
+                  ? parseFloat(doc.cobros[doc.cobros.length - 1].monto)
+                  : 0.0,
+              balance: parseFloat(doc.total) - sumatoriaMontoPagos,
+              paymentMethod:
+                doc.cobros && doc.cobros.length > 0
+                  ? doc.cobros[doc.cobros.length - 1].forma_cobro
+                  : null,
+              paymentNumber: doc.cobros ? doc.cobros.length : 0, // Si no hay cobros, 0
+              lastFollowStatus: doc.estado,
               paymentSupportPdf: doc.url_ride || null,
               paymentName: doc.descripcion,
               paymentSupportImg: null,
@@ -516,14 +570,25 @@ export class ContificoService {
               msgSendCom3: false,
               msgSendPrePay: false,
               paymentSupport: [],
-              registerDate: Timestamp.fromDate(new Date()),
+              // !--- registerDate en UTC ---!
+              registerDate: Timestamp.fromDate(
+                new Date(
+                  Date.UTC(
+                    new Date().getFullYear(),
+                    new Date().getMonth(),
+                    new Date().getDate(),
+                  ),
+                ),
+              ),
               month: fecha.month,
               year: fecha.year,
               docRelationated: true,
               idDocContifico: doc.id,
               docFactura: doc.documento,
-              anulado: false, // Por defecto, no anulado
+              // !--- anulado: false para el NUEVO registro de anulación ---!
+              anulado: false, // Este *nuevo* registro no está anulado, sino que *es* la anulación
               yearMonth: `${fecha.year}${String(fecha.month).padStart(2, '0')}`,
+              cedula: doc.persona.cedula,
             };
 
             if (analysisResult.tipo === 'anulacion') {
@@ -1030,6 +1095,7 @@ export class ContificoService {
         afiliacion: 0,
         otros: 0,
         noUnit: 0,
+        noContact: 0,
         geminiError: 0,
         contificoApiError: 0,
       },
@@ -1061,6 +1127,7 @@ export class ContificoService {
         overallStats.skipped.anulacion += dailyStats.skipped.anulacion;
         overallStats.skipped.afiliacion += dailyStats.skipped.afiliacion;
         overallStats.skipped.otros += dailyStats.skipped.otros;
+        overallStats.skipped.noContact += dailyStats.skipped.noContact;
         overallStats.skipped.noUnit += dailyStats.skipped.noUnit;
         overallStats.skipped.geminiError += dailyStats.skipped.geminiError;
         overallStats.skipped.contificoApiError +=
