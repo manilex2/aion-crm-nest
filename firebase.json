@@ -50,23 +50,8 @@
       "runtime": "nodejs20"
     },
     {
-      "source": "functions/actualizarDocsContifico",
-      "codebase": "actualizar-docs-contifico",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ],
-      "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint"
-      ],
-      "runtime": "nodejs20"
-    },
-    {
-      "source": "functions/obtenerDocsContifico",
-      "codebase": "obtener-docs-contifico",
+      "source": "functions/contifico",
+      "codebase": "docs-contifico",
       "ignore": [
         "node_modules",
         ".git",

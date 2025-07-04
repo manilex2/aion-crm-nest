@@ -5,14 +5,16 @@ import * as admin from 'firebase-admin';
 
 async function bootstrap() {
   if (!admin.apps.length) {
-    const serviceAccountPath = './src/serviceAccountKey.json';
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccountPath),
-      // Si usas Realtime Database o Cloud Storage, puedes añadir:
-      // databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-      // storageBucket: "YOUR_PROJECT_ID.appspot.com"
-    });
-    console.log('Firebase Admin SDK initialized with service account.');
+    try {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+      });
+      console.log('Firebase Admin SDK initialized successfully.'); // Mensaje de éxito
+    } catch (error) {
+      console.error('Error al inicializar Firebase Admin SDK:', error); // Captura el error aquí
+      // Aquí puedes decidir si quieres que la aplicación se detenga o intente continuar
+      process.exit(1); // Detener la aplicación si la inicialización falla críticamente
+    }
   }
 
   const app = await NestFactory.create(AppModule);
